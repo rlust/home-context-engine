@@ -58,3 +58,19 @@ flaky sensor cannot pin a room occupied.
 - `input_boolean.ai_context_enabled` — master switch (ON)
 - `input_boolean.ai_actions_enabled` — **safety gate (OFF)**; no device is controlled while OFF
 - `input_boolean.home_context_guest_mode`, `input_boolean.party_mode`, `input_boolean.sleep_no_lights`
+
+## Engine health / observability (Phase 3)
+
+Detects when the Observer stops running (master switch turned off, or an
+automation error), so a *frozen* classification is never mistaken for a live one.
+
+| Entity | Type | Definition |
+|---|---|---|
+| `sensor.home_context_observer_age` | template **sensor** | Minutes since the Observer last ran. `state:` `{% set lt = state_attr('automation.home_context_evening_observer','last_triggered') %}{{ ((now() - lt).total_seconds() / 60) \| round(0) }}` · `device_class: duration` · `unit: min` · `state_class: measurement` · availability guarded on `last_triggered is not none`. |
+| `binary_sensor.home_context_engine_stalled` | **threshold** helper | Turns **on** when `sensor.home_context_observer_age` exceeds **15 min**, with `hysteresis: 2` (on above ~17, off below ~13). `entity_id: sensor.home_context_observer_age`, `upper: 15`. |
+
+The dashboard's **Engine Health** section surfaces both, plus a red **STALLED**
+badge (visible only when stalled) and a conditional card explaining the likely
+cause (usually: the master switch is OFF, so everything is frozen at the last
+classification).
+
