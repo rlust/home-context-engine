@@ -68,8 +68,15 @@ conflicting.
 ## Repo layout
 
 ```
-automations/   Observer, entry-stamp, suggestion/approve/dismiss (HA config-API JSON)
-helpers/       Template + input helper definitions (HELPERS.md)
+automations/   HA config-API JSON:
+                 home_context_observer ............ the classifier
+                 home_context_stamp_entry ......... arrival/departure timestamp
+                 home_context_dynamic_suggestions . Phase 4 suggestion text
+                 home_context_approve_denon_music_lighting . gated, manual-only action
+                 home_context_dismiss_suggestion .. records dismissal
+                 home_context_engine_stalled_alert  Phase 3: notify if observer stalls
+                 home_context_sync_bed_time ....... peripheral house-mode ↔ bed_time sync
+helpers/       Template + group + input helper definitions (HELPERS.md)
 dashboard/     The "Home Context" Lovelace view (sanitized JSON)
 docs/          PLAN.md (working log) and VISION_ROADMAP.md (north star)
 ```

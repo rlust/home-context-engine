@@ -1,0 +1,19 @@
+{
+  "alias": "Home Context - Sync Bed Time RC From House Mode",
+  "description": "Peripheral (not part of the classifier). Keeps input_boolean.bed_time aligned with the legacy house-mode schedule so Home Context does not see a stale bedtime latch during Morning, Afternoon, or TV Time. Sleep-oriented house modes force the boolean on; all other house modes force it off.",
+  "triggers": [
+    { "trigger": "homeassistant", "event": "start", "id": "startup" },
+    { "trigger": "state", "entity_id": "input_select.house_mode", "id": "house_mode_changed" },
+    { "trigger": "time_pattern", "minutes": "/10", "id": "periodic_guard" }
+  ],
+  "actions": [
+    { "choose": [
+      { "conditions": [ { "condition": "state", "entity_id": "input_select.house_mode", "state": ["Sleep Time", "Sleep", "Bedtime", "Early Morning"] } ],
+        "sequence": [ { "action": "input_boolean.turn_on", "target": { "entity_id": "input_boolean.bed_time" } } ]
+      }
+    ],
+    "default": [ { "action": "input_boolean.turn_off", "target": { "entity_id": "input_boolean.bed_time" } } ]
+    }
+  ],
+  "mode": "single"
+}

@@ -20,19 +20,23 @@ not YAML. This file documents their definitions for reference.
 Each ORs together the real motion / mmWave / FP2 sensors for that room so a single
 flaky sensor cannot pin a room occupied.
 
-| Room helper | Source sensors (summarized) |
-|---|---|
-| `binary_sensor.family_room_occupied` | Aqara FP2 zones 1 + 3 |
-| `binary_sensor.kitchen_occupied` | kitchen motion group + kitchen occupancy group + FP2 zone 2 |
-| `binary_sensor.office_occupied` | 3 ESPHome presence sensors |
-| `binary_sensor.foyer_occupied` | ESPHome presence sensor |
-| `binary_sensor.master_bedroom_occupied` | 3 mmWave (human / moving / still) + 2 motion sensors |
-| `binary_sensor.master_bath_occupied` | closet motion |
-| `binary_sensor.basement_occupied` | ESP radar (movement / occupancy) |
-| `binary_sensor.basement_landing_occupied` | basement-landing occupancy |
-| `binary_sensor.theater_occupied` | theater occupancy |
-| `binary_sensor.shop_occupied` | shop occupancy |
-| `binary_sensor.upstairs_hall_occupied` | Zigbee motion (Aqara aq2) |
+| Room helper | Kind | Source sensors (summarized) |
+|---|---|---|
+| `binary_sensor.family_room_occupied` | template | Aqara FP2 zones 1 + 3 + Lumi aq2 occupancy |
+| `binary_sensor.kitchen_occupied` | template | kitchen motion group + kitchen occupancy group + FP2 zone 2 |
+| `binary_sensor.office_occupied` | template | 3 ESPHome presence sensors |
+| `binary_sensor.foyer_occupied` | template | ESPHome presence sensor |
+| `binary_sensor.master_bedroom_occupied` | template | 3 mmWave (human / moving / still) + 2 motion sensors |
+| `binary_sensor.master_bath_occupied` | template | closet motion |
+| `binary_sensor.basement_occupied` | template | ESP radar (movement OR occupancy_or_movement) |
+| `binary_sensor.basement_landing_occupied` | **group** | `motion_sensor_31_ac_68_motion` + `basement_door_intrusion` |
+| `binary_sensor.theater_occupied` | **group** | `esp_radar_ld1115h_occupancy_or_movement` (⚠ currently `unknown` — verify this member; also shared with `basement_occupied`) |
+| `binary_sensor.shop_occupied` | **group** | `hai_motion_shop` + `hai_motion_shopt` |
+| `binary_sensor.upstairs_hall_occupied` | template | Zigbee motion (Aqara aq2) |
+
+> The `_occupied` helpers are HA **template** binary sensors, **except** Theater,
+> Shop, and Basement Landing, which are HA **`group`** (binary_sensor) helpers
+> (added by a later session).
 
 ## Template sensors
 

@@ -1,0 +1,23 @@
+{
+  "alias": "Home Context - Engine Stalled Alert",
+  "description": "Pushes a notification when the context engine stops classifying. The master switch failing silently is invisible otherwise — other home_context automations keep firing and the frozen values stay plausible.",
+  "triggers": [
+    { "trigger": "state", "entity_id": "binary_sensor.home_context_engine_stalled", "to": "on", "for": { "minutes": 5 }, "id": "stalled" },
+    { "trigger": "state", "entity_id": "binary_sensor.home_context_engine_stalled", "to": "off", "id": "recovered" }
+  ],
+  "conditions": [],
+  "actions": [
+    { "choose": [
+      { "conditions": [ { "condition": "trigger", "id": "stalled" } ],
+        "sequence": [
+          { "action": "notify.mobile_app_iot_2", "continue_on_error": true, "data": { "title": "⚠️ Home Context engine stalled", "message": "Observer hasn't run in {{ states('sensor.home_context_observer_age') }} min (expected every 5). {% if is_state('input_boolean.ai_context_enabled','off') %}Cause: AI Context master switch is OFF — context is frozen.{% else %}Master switch is on; check the automation trace.{% endif %}", "data": { "url": "/home-command/context", "push": { "interruption-level": "time-sensitive" } } } },
+          { "action": "persistent_notification.create", "data": { "title": "Home Context engine stalled", "message": "Observer hasn't run in {{ states('sensor.home_context_observer_age') }} min (expected every 5). {% if is_state('input_boolean.ai_context_enabled','off') %}Cause: AI Context master switch is OFF — context is frozen.{% else %}Master switch is on; check the automation trace.{% endif %}", "notification_id": "home_context_engine_stalled" } }
+        ]
+      },
+      { "conditions": [ { "condition": "trigger", "id": "recovered" } ],
+        "sequence": [ { "action": "persistent_notification.dismiss", "data": { "notification_id": "home_context_engine_stalled" } } ]
+      }
+    ] }
+  ],
+  "mode": "single"
+}
