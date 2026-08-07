@@ -1,0 +1,123 @@
+{
+  "alias": "Home Context - Observer",
+  "description": "Observation-only context classifier. Classifies household MODE and ACTIVITY from 11-room occupancy, resident presence, sleep signal, guest/party, media, and entry/garage doors. Coming and going re-classifies within seconds; binary_sensor.recent_arrival (8 min after a front/garage-entry door opens) suppresses premature Away. Writes only Home Context helpers; never controls devices. ai_actions_enabled is a separate safety gate, not used here.",
+  "triggers": [
+    { "trigger": "homeassistant", "event": "start", "id": "startup" },
+    { "trigger": "time_pattern", "minutes": "/5", "id": "periodic_refresh" },
+    { "trigger": "state", "id": "context_signal_changed", "entity_id": [
+      "input_boolean.ai_context_enabled", "input_boolean.home_context_guest_mode", "input_boolean.party_mode", "input_boolean.sleep_no_lights",
+      "binary_sensor.residents_home", "binary_sensor.tv_active", "binary_sensor.music_playing", "binary_sensor.night_time",
+      "binary_sensor.family_room_occupied", "binary_sensor.kitchen_occupied", "binary_sensor.office_occupied", "binary_sensor.foyer_occupied",
+      "binary_sensor.master_bedroom_occupied", "binary_sensor.master_bath_occupied", "binary_sensor.basement_occupied", "binary_sensor.basement_landing_occupied",
+      "binary_sensor.theater_occupied", "binary_sensor.shop_occupied", "binary_sensor.upstairs_hall_occupied",
+      "binary_sensor.hai_front_door", "binary_sensor.hai_garage_door", "binary_sensor.hai_deck_door", "cover.gdo1_door", "cover.grgdo1_door",
+      "binary_sensor.recent_arrival" ] }
+  ],
+  "conditions": [
+    { "condition": "state", "entity_id": "input_boolean.ai_context_enabled", "state": "on" }
+  ],
+  "actions": [
+    { "choose": [
+      { "alias": "Sleep signal indicates sleeping",
+        "conditions": [ { "condition": "state", "entity_id": "input_boolean.sleep_no_lights", "state": "on" } ],
+        "sequence": [
+          { "action": "input_select.select_option", "target": { "entity_id": "input_select.home_context_mode" }, "data": { "option": "Sleeping" } },
+          { "action": "input_select.select_option", "target": { "entity_id": "input_select.home_current_activity" }, "data": { "option": "Sleeping" } },
+          { "action": "input_number.set_value", "target": { "entity_id": "input_number.home_context_confidence" }, "data": { "value": "{{ [99, [30, 78 + (10 if is_state('binary_sensor.night_time','on') else 0) + (9 if is_state('binary_sensor.master_bedroom_occupied','on') else 0) - (25 if (is_state('binary_sensor.night_time','off') and is_state('binary_sensor.master_bedroom_occupied','off') and is_state('binary_sensor.home_room_presence','on')) else 0)] | max] | min }}" } },
+          { "action": "input_text.set_value", "target": { "entity_id": "input_text.home_context_summary" }, "data": { "value": "{{ 'Sleep signal on and master bedroom occupied' if is_state('binary_sensor.master_bedroom_occupied','on') else 'Sleep signal on; master bedroom shows no presence' }}; classified as sleeping." } },
+          { "action": "input_text.set_value", "target": { "entity_id": "input_text.home_next_likely_activity" }, "data": { "value": "Waking" } }
+        ]
+      },
+      { "alias": "Guest or party mode indicates entertaining",
+        "conditions": [ { "condition": "or", "conditions": [ { "condition": "state", "entity_id": "input_boolean.home_context_guest_mode", "state": "on" }, { "condition": "state", "entity_id": "input_boolean.party_mode", "state": "on" } ] } ],
+        "sequence": [
+          { "action": "input_select.select_option", "target": { "entity_id": "input_select.home_context_mode" }, "data": { "option": "Entertaining" } },
+          { "action": "input_select.select_option", "target": { "entity_id": "input_select.home_current_activity" }, "data": { "option": "Entertaining" } },
+          { "action": "input_number.set_value", "target": { "entity_id": "input_number.home_context_confidence" }, "data": { "value": "{{ 82 + (8 if (is_state('input_boolean.home_context_guest_mode','on') and is_state('input_boolean.party_mode','on')) else 0) + (6 if is_state('binary_sensor.residents_home','on') else 0) }}" } },
+          { "action": "input_text.set_value", "target": { "entity_id": "input_text.home_context_summary" }, "data": { "value": "Guest or party mode is active; household classified as entertaining." } },
+          { "action": "input_text.set_value", "target": { "entity_id": "input_text.home_next_likely_activity" }, "data": { "value": "Relaxing" } }
+        ]
+      },
+      { "alias": "No residents home and no room presence",
+        "note": "Away requires residents off, no recent entry-door event, and no room presence for 45s - so a fresh arrival/departure does not flap into Away before presence settles.",
+        "conditions": [ { "condition": "state", "entity_id": "binary_sensor.residents_home", "state": "off" }, { "condition": "state", "entity_id": "binary_sensor.recent_arrival", "state": "off" }, { "condition": "state", "entity_id": "binary_sensor.home_room_presence", "state": "off", "for": { "seconds": 45 } } ],
+        "sequence": [
+          { "action": "input_select.select_option", "target": { "entity_id": "input_select.home_context_mode" }, "data": { "option": "Away" } },
+          { "action": "input_select.select_option", "target": { "entity_id": "input_select.home_current_activity" }, "data": { "option": "Away" } },
+          { "action": "input_number.set_value", "target": { "entity_id": "input_number.home_context_confidence" }, "data": { "value": "{{ 85 + (5 if is_state('binary_sensor.night_time','on') else 0) }}" } },
+          { "action": "input_text.set_value", "target": { "entity_id": "input_text.home_context_summary" }, "data": { "value": "No tracked residents or room presence detected; household classified as away." } },
+          { "action": "input_text.set_value", "target": { "entity_id": "input_text.home_next_likely_activity" }, "data": { "value": "Returning Home" } }
+        ]
+      },
+      { "alias": "Office occupied during work hours - working",
+        "conditions": [ { "condition": "state", "entity_id": "binary_sensor.office_occupied", "state": "on", "for": { "minutes": 5 } }, { "condition": "time", "after": "07:00:00", "before": "18:00:00", "weekday": ["mon","tue","wed","thu","fri"] } ],
+        "sequence": [
+          { "action": "input_select.select_option", "target": { "entity_id": "input_select.home_context_mode" }, "data": { "option": "Active" } },
+          { "action": "input_select.select_option", "target": { "entity_id": "input_select.home_current_activity" }, "data": { "option": "Working" } },
+          { "action": "input_number.set_value", "target": { "entity_id": "input_number.home_context_confidence" }, "data": { "value": "{{ 76 + (12 if is_state('binary_sensor.residents_home','on') else 0) }}" } },
+          { "action": "input_text.set_value", "target": { "entity_id": "input_text.home_context_summary" }, "data": { "value": "Sustained office presence during weekday work hours; classified as working." } },
+          { "action": "input_text.set_value", "target": { "entity_id": "input_text.home_next_likely_activity" }, "data": { "value": "Daily Life" } }
+        ]
+      },
+      { "alias": "Kitchen occupied during a meal window - cooking",
+        "conditions": [ { "condition": "state", "entity_id": "binary_sensor.kitchen_occupied", "state": "on", "for": { "minutes": 5 } }, { "condition": "or", "conditions": [ { "condition": "time", "after": "06:00:00", "before": "09:00:00" }, { "condition": "time", "after": "11:00:00", "before": "13:30:00" }, { "condition": "time", "after": "16:30:00", "before": "19:30:00" } ] } ],
+        "sequence": [
+          { "action": "input_select.select_option", "target": { "entity_id": "input_select.home_context_mode" }, "data": { "option": "Active" } },
+          { "action": "input_select.select_option", "target": { "entity_id": "input_select.home_current_activity" }, "data": { "option": "Cooking" } },
+          { "action": "input_number.set_value", "target": { "entity_id": "input_number.home_context_confidence" }, "data": { "value": "{{ 72 + (12 if is_state('binary_sensor.residents_home','on') else 0) + (6 if (is_state('light.kitchen_lights','on') or is_state('light.smart_switch_kitchen','on')) else 0) }}" } },
+          { "action": "input_text.set_value", "target": { "entity_id": "input_text.home_context_summary" }, "data": { "value": "Sustained kitchen presence during a meal window; classified as cooking." } },
+          { "action": "input_text.set_value", "target": { "entity_id": "input_text.home_next_likely_activity" }, "data": { "value": "Dining" } }
+        ]
+      },
+      { "alias": "TV active with presence - watching TV",
+        "conditions": [ { "condition": "state", "entity_id": "binary_sensor.tv_active", "state": "on" }, { "condition": "or", "conditions": [ { "condition": "state", "entity_id": "binary_sensor.family_room_occupied", "state": "on" }, { "condition": "state", "entity_id": "binary_sensor.residents_home", "state": "on" } ] } ],
+        "sequence": [
+          { "action": "input_select.select_option", "target": { "entity_id": "input_select.home_context_mode" }, "data": { "option": "Relaxing" } },
+          { "action": "input_select.select_option", "target": { "entity_id": "input_select.home_current_activity" }, "data": { "option": "Watching TV" } },
+          { "action": "input_number.set_value", "target": { "entity_id": "input_number.home_context_confidence" }, "data": { "value": "{{ 70 + (18 if is_state('binary_sensor.family_room_occupied','on') else 0) + (8 if is_state('binary_sensor.residents_home','on') else 0) }}" } },
+          { "action": "input_text.set_value", "target": { "entity_id": "input_text.home_context_summary" }, "data": { "value": "{{ 'Family room occupied with TV on' if is_state('binary_sensor.family_room_occupied','on') else 'TV on, resident home but family room empty' }}; activity in: {{ states('sensor.home_active_room') }}." } },
+          { "action": "input_text.set_value", "target": { "entity_id": "input_text.home_next_likely_activity" }, "data": { "value": "Bedtime" } }
+        ]
+      },
+      { "alias": "Music playing without TV - listening to music",
+        "conditions": [ { "condition": "state", "entity_id": "binary_sensor.music_playing", "state": "on" }, { "condition": "or", "conditions": [ { "condition": "state", "entity_id": "binary_sensor.residents_home", "state": "on" }, { "condition": "state", "entity_id": "binary_sensor.home_room_presence", "state": "on" } ] } ],
+        "sequence": [
+          { "action": "input_select.select_option", "target": { "entity_id": "input_select.home_context_mode" }, "data": { "option": "Relaxing" } },
+          { "action": "input_select.select_option", "target": { "entity_id": "input_select.home_current_activity" }, "data": { "option": "Listening to Music" } },
+          { "action": "input_number.set_value", "target": { "entity_id": "input_number.home_context_confidence" }, "data": { "value": "{{ 74 + (12 if is_state('binary_sensor.residents_home','on') else 0) + (6 if is_state('binary_sensor.home_room_presence','on') else 0) }}" } },
+          { "action": "input_text.set_value", "target": { "entity_id": "input_text.home_context_summary" }, "data": { "value": "Music playing with no TV active; activity in: {{ states('sensor.home_active_room') }}." } },
+          { "action": "input_text.set_value", "target": { "entity_id": "input_text.home_next_likely_activity" }, "data": { "value": "Continue Current Activity" } }
+        ]
+      },
+      { "alias": "Morning waking - presence after sleep",
+        "conditions": [ { "condition": "time", "after": "05:00:00", "before": "10:00:00" }, { "condition": "or", "conditions": [ { "condition": "state", "entity_id": "binary_sensor.residents_home", "state": "on" }, { "condition": "state", "entity_id": "binary_sensor.home_room_presence", "state": "on" } ] } ],
+        "sequence": [
+          { "action": "input_select.select_option", "target": { "entity_id": "input_select.home_context_mode" }, "data": { "option": "Waking" } },
+          { "action": "input_select.select_option", "target": { "entity_id": "input_select.home_current_activity" }, "data": { "option": "Daily Life" } },
+          { "action": "input_number.set_value", "target": { "entity_id": "input_number.home_context_confidence" }, "data": { "value": "{{ 70 + (8 if is_state('binary_sensor.residents_home','on') else 0) + (12 if (is_state('binary_sensor.master_bedroom_occupied','on') or is_state('binary_sensor.master_bath_occupied','on')) else 0) }}" } },
+          { "action": "input_text.set_value", "target": { "entity_id": "input_text.home_context_summary" }, "data": { "value": "Morning window with sleep signal off; activity in: {{ states('sensor.home_active_room') }}." } },
+          { "action": "input_text.set_value", "target": { "entity_id": "input_text.home_next_likely_activity" }, "data": { "value": "Daily Life" } }
+        ]
+      },
+      { "alias": "Resident or room presence indicates normal activity",
+        "conditions": [ { "condition": "or", "conditions": [ { "condition": "state", "entity_id": "binary_sensor.residents_home", "state": "on" }, { "condition": "state", "entity_id": "binary_sensor.home_room_presence", "state": "on" } ] } ],
+        "sequence": [
+          { "action": "input_select.select_option", "target": { "entity_id": "input_select.home_context_mode" }, "data": { "option": "Active" } },
+          { "action": "input_select.select_option", "target": { "entity_id": "input_select.home_current_activity" }, "data": { "option": "Daily Life" } },
+          { "action": "input_number.set_value", "target": { "entity_id": "input_number.home_context_confidence" }, "data": { "value": "{{ 55 + (25 if is_state('binary_sensor.residents_home','on') else 0) + (5 if is_state('binary_sensor.home_room_presence','on') else 0) }}" } },
+          { "action": "input_text.set_value", "target": { "entity_id": "input_text.home_context_summary" }, "data": { "value": "{{ 'Recently arrived — ' if is_state('binary_sensor.recent_arrival','on') else '' }}Normal household activity inferred; activity in: {{ states('sensor.home_active_room') }}." } },
+          { "action": "input_text.set_value", "target": { "entity_id": "input_text.home_next_likely_activity" }, "data": { "value": "Continue Current Activity" } }
+        ]
+      }
+    ],
+    "default": [
+      { "action": "input_select.select_option", "target": { "entity_id": "input_select.home_context_mode" }, "data": { "option": "Unknown" } },
+      { "action": "input_select.select_option", "target": { "entity_id": "input_select.home_current_activity" }, "data": { "option": "Unknown" } },
+      { "action": "input_number.set_value", "target": { "entity_id": "input_number.home_context_confidence" }, "data": { "value": 20 } },
+      { "action": "input_text.set_value", "target": { "entity_id": "input_text.home_context_summary" }, "data": { "value": "Available signals do not support a reliable household context." } },
+      { "action": "input_text.set_value", "target": { "entity_id": "input_text.home_next_likely_activity" }, "data": { "value": "Unknown" } }
+    ]
+    }
+  ],
+  "mode": "restart"
+}

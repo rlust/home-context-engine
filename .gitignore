@@ -1,0 +1,6 @@
+# Never commit secrets or local HA state
+secrets.yaml
+*.token
+.storage/
+*.log
+.DS_Store

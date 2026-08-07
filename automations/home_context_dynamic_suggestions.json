@@ -1,0 +1,26 @@
+{
+  "alias": "Home Context - Dynamic Suggestions",
+  "description": "Context-aware suggestion layer. The Denon music-lighting suggestion is offered only for an occupied Family Room after sunset during the evening, with high confidence; its action still requires explicit manual approval and never enables automatic actions.",
+  "triggers": [
+    { "trigger": "homeassistant", "event": "start" },
+    { "trigger": "time_pattern", "minutes": "/5" },
+    { "trigger": "state", "entity_id": ["input_select.home_context_mode", "input_select.home_current_activity", "input_number.home_context_confidence", "binary_sensor.music_playing", "binary_sensor.tv_active", "binary_sensor.home_room_presence", "binary_sensor.residents_home", "binary_sensor.family_room_occupied", "sun.sun"] }
+  ],
+  "conditions": [
+    { "condition": "state", "entity_id": "input_boolean.ai_context_enabled", "state": "on" }
+  ],
+  "actions": [
+    { "choose": [
+      { "alias": "Evidence gap needs review", "conditions": [ { "condition": "numeric_state", "entity_id": "input_number.home_context_confidence", "below": 70 } ], "sequence": [ { "action": "input_text.set_value", "target": { "entity_id": "input_text.home_context_suggestion" }, "data": { "value": "Evidence gap: context confidence is low. Keep observing and review the room or media signals before changing rules." } } ] },
+      { "alias": "Eligible evening music-lighting suggestion", "conditions": [ { "condition": "state", "entity_id": "input_select.home_current_activity", "state": "Listening to Music" }, { "condition": "state", "entity_id": "binary_sensor.music_playing", "state": "on" }, { "condition": "state", "entity_id": "binary_sensor.family_room_occupied", "state": "on" }, { "condition": "numeric_state", "entity_id": "input_number.home_context_confidence", "above": 79 }, { "condition": "sun", "after": "sunset" }, { "condition": "time", "after": "17:00:00", "before": "23:30:00" } ], "sequence": [ { "action": "input_text.set_value", "target": { "entity_id": "input_text.home_context_suggestion" }, "data": { "value": "Evening music is verified through the Denon and the Family Room is occupied. You may approve a warm, low-brightness Family Room lighting adjustment; nothing changes without your approval." } } ] },
+      { "alias": "Verified music context", "conditions": [ { "condition": "state", "entity_id": "input_select.home_current_activity", "state": "Listening to Music" } ], "sequence": [ { "action": "input_text.set_value", "target": { "entity_id": "input_text.home_context_suggestion" }, "data": { "value": "Music is verified through the Denon, but a lighting suggestion needs an occupied Family Room, high confidence, and the evening window after sunset. No action is available now." } } ] },
+      { "alias": "Working context", "conditions": [ { "condition": "state", "entity_id": "input_select.home_current_activity", "state": "Working" } ], "sequence": [ { "action": "input_text.set_value", "target": { "entity_id": "input_text.home_context_suggestion" }, "data": { "value": "Working pattern detected. Keep this observation-only for now; later, consider a quiet-notifications suggestion." } } ] },
+      { "alias": "Cooking context", "conditions": [ { "condition": "state", "entity_id": "input_select.home_current_activity", "state": "Cooking" } ], "sequence": [ { "action": "input_text.set_value", "target": { "entity_id": "input_text.home_context_suggestion" }, "data": { "value": "Cooking pattern detected. Appliance-power evidence would make this suggestion more reliable before any future automation." } } ] },
+      { "alias": "Sleeping context", "conditions": [ { "condition": "state", "entity_id": "input_select.home_current_activity", "state": "Sleeping" } ], "sequence": [ { "action": "input_text.set_value", "target": { "entity_id": "input_text.home_context_suggestion" }, "data": { "value": "Sleep context detected. Nonessential suggestions are suppressed; no devices will be controlled." } } ] },
+      { "alias": "Away context", "conditions": [ { "condition": "state", "entity_id": "input_select.home_current_activity", "state": "Away" } ], "sequence": [ { "action": "input_text.set_value", "target": { "entity_id": "input_text.home_context_suggestion" }, "data": { "value": "Away context detected. Review security or energy status manually; no automatic action is enabled." } } ] }
+    ],
+    "default": [ { "action": "input_text.set_value", "target": { "entity_id": "input_text.home_context_suggestion" }, "data": { "value": "No intervention suggested. The system is observing current evidence and will surface a recommendation when confidence or context changes." } } ]
+    }
+  ],
+  "mode": "restart"
+}

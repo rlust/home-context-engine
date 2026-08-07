@@ -1,0 +1,39 @@
+{
+  "alias": "Home Context - Approve Denon Music Lighting",
+  "description": "Manual-only, bounded approval path. Changes Family Room Lights only when a person approves an evening, high-confidence, Denon-verified music suggestion while the Family Room is occupied AND the ai_actions_enabled safety gate is ON. While the gate is OFF it records the approval as feedback but changes nothing. It never enables automatic actions.",
+  "triggers": [
+    { "trigger": "state", "entity_id": "input_button.approve_home_context_suggestion" }
+  ],
+  "conditions": [],
+  "actions": [
+    { "choose": [
+      { "alias": "Eligible Denon music suggestion - actions gate ON",
+        "conditions": [
+          { "condition": "state", "entity_id": "input_boolean.ai_actions_enabled", "state": "on" },
+          { "condition": "state", "entity_id": "input_boolean.ai_context_enabled", "state": "on" },
+          { "condition": "state", "entity_id": "input_select.home_current_activity", "state": "Listening to Music" },
+          { "condition": "state", "entity_id": "binary_sensor.music_playing", "state": "on" },
+          { "condition": "state", "entity_id": "media_player.family_room", "state": ["on", "playing", "paused"] },
+          { "condition": "state", "entity_id": "binary_sensor.family_room_occupied", "state": "on" },
+          { "condition": "sun", "after": "sunset" },
+          { "condition": "time", "after": "17:00:00", "before": "23:30:00" },
+          { "condition": "numeric_state", "entity_id": "input_number.home_context_confidence", "above": 79 }
+        ],
+        "sequence": [
+          { "alias": "Apply warm, low-brightness Family Room lighting", "action": "light.turn_on", "target": { "entity_id": "light.family_room_lights" }, "data": { "brightness_pct": 45, "color_temp_kelvin": 2700, "transition": 2 } },
+          { "action": "input_text.set_value", "target": { "entity_id": "input_text.home_context_feedback" }, "data": { "value": "Approved: applied warm Family Room lighting for the current Denon-verified music session." } },
+          { "action": "input_text.set_value", "target": { "entity_id": "input_text.home_context_suggestion" }, "data": { "value": "Music lighting was applied by your approval. It will not repeat unless you approve a new suggestion." } }
+        ]
+      },
+      { "alias": "Approved but AI Actions safety gate is OFF",
+        "note": "Records the approval for accept-rate measurement (Phase 3) without controlling any device. This is the observe-only default until accuracy is proven and ai_actions_enabled is deliberately turned on.",
+        "conditions": [ { "condition": "state", "entity_id": "input_boolean.ai_actions_enabled", "state": "off" } ],
+        "sequence": [ { "action": "input_text.set_value", "target": { "entity_id": "input_text.home_context_feedback" }, "data": { "value": "Approval logged, but AI Actions is OFF (safety gate). No device was changed. Turn on AI Actions to allow approved lighting." } } ]
+      }
+    ],
+    "default": [ { "action": "input_text.set_value", "target": { "entity_id": "input_text.home_context_feedback" }, "data": { "value": "Approval received, but the Denon music suggestion was no longer eligible (needs evening, occupied Family Room, verified music, high confidence). No lighting was changed." } } ]
+    }
+  ],
+  "mode": "single",
+  "max_exceeded": "silent"
+}

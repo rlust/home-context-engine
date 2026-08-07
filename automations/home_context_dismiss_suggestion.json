@@ -1,0 +1,13 @@
+{
+  "alias": "Home Context - Dismiss Suggestion",
+  "description": "Records a manual dismissal of the displayed Home Context suggestion. Never controls devices.",
+  "triggers": [
+    { "trigger": "state", "entity_id": "input_button.dismiss_home_context_suggestion" }
+  ],
+  "actions": [
+    { "action": "input_text.set_value", "target": { "entity_id": "input_text.home_context_feedback" }, "data": { "value": "Dismissed: no action was taken. This feedback will be used when reviewing suggestion quality." } },
+    { "action": "input_text.set_value", "target": { "entity_id": "input_text.home_context_suggestion" }, "data": { "value": "Suggestion dismissed. No device was changed; observation continues." } }
+  ],
+  "mode": "single",
+  "max_exceeded": "silent"
+}

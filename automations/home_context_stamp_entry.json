@@ -1,0 +1,12 @@
+{
+  "alias": "Home Context - Stamp Entry",
+  "description": "Observation-only. Stamps input_datetime.home_last_entry when the front door or the garage-to-house entry door opens, so the engine can recognize a recent arrival/departure (binary_sensor.recent_arrival). Writes only a helper; never controls devices.",
+  "triggers": [
+    { "trigger": "state", "entity_id": ["binary_sensor.hai_front_door", "binary_sensor.hai_garage_door"], "to": "on" }
+  ],
+  "conditions": [],
+  "actions": [
+    { "action": "input_datetime.set_datetime", "target": { "entity_id": "input_datetime.home_last_entry" }, "data": { "datetime": "{{ now() }}" } }
+  ],
+  "mode": "single"
+}
