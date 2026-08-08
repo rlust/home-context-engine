@@ -75,6 +75,7 @@ automations/   HA config-API JSON:
                  home_context_approve_denon_music_lighting . gated, manual-only action
                  home_context_dismiss_suggestion .. records dismissal
                  home_context_engine_stalled_alert  Phase 3: notify if observer stalls
+                 home_context_mark_wrong .......... Phase 3: log a "that was wrong" correction
                  home_context_sync_bed_time ....... peripheral house-mode ↔ bed_time sync
 helpers/       Template + group + input helper definitions (HELPERS.md)
 dashboard/     The "Home Context" Lovelace view (sanitized JSON)

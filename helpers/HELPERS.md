@@ -78,3 +78,22 @@ badge (visible only when stalled) and a conditional card explaining the likely
 cause (usually: the master switch is OFF, so everything is frozen at the last
 classification).
 
+## Accuracy measurement — "that was wrong" (Phase 3)
+
+Turns accuracy from a vibe into a countable number. The household taps a button
+whenever the current classification is wrong; the automation snapshots the moment.
+
+| Entity | Type | Purpose |
+|---|---|---|
+| `input_button.home_context_mark_wrong` | input_button | Tap when the current classification is incorrect |
+| `counter.home_context_corrections` | counter | Running count of wrong flags (target: **< 5 / week**) |
+| `input_text.home_context_last_correction` | input_text (255) | Human-readable snapshot of the last flag |
+
+`automation.home_context_mark_wrong` (see `../automations/`) fires on the button:
+it increments the counter, writes the snapshot (`mode / activity / confidence /
+active room / evidence`) to the input_text, and adds a **logbook** entry named
+"Home Context WRONG". The weekly review reads the counter history + logbook to
+report wrong/week and to spot which activities or evidence combos fail most.
+The dashboard's **Accuracy Feedback** section surfaces the button, the counter,
+and the last correction.
+

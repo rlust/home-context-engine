@@ -1,0 +1,14 @@
+{
+  "alias": "Home Context - Mark Wrong",
+  "description": "Phase 3 measurement. When the Mark Wrong button is pressed, records that the CURRENT classification was incorrect: increments counter.home_context_corrections, writes a snapshot to input_text.home_context_last_correction, and adds a logbook entry capturing the mode/activity/confidence/evidence at that moment. Observe-only; never controls a device.",
+  "triggers": [
+    { "trigger": "state", "entity_id": "input_button.home_context_mark_wrong" }
+  ],
+  "conditions": [],
+  "actions": [
+    { "action": "counter.increment", "target": { "entity_id": "counter.home_context_corrections" } },
+    { "action": "input_text.set_value", "target": { "entity_id": "input_text.home_context_last_correction" }, "data": { "value": "{{ ('WRONG ' ~ now().strftime('%m/%d %H:%M') ~ ': ' ~ states('input_select.home_context_mode') ~ '/' ~ states('input_select.home_current_activity') ~ ' ' ~ states('input_number.home_context_confidence') ~ '% · ' ~ states('sensor.home_active_room') ~ ' · ' ~ states('input_text.home_context_summary'))[:255] }}" } },
+    { "action": "logbook.log", "data": { "name": "Home Context WRONG", "message": "{{ states('input_select.home_context_mode') }}/{{ states('input_select.home_current_activity') }} at {{ states('input_number.home_context_confidence') }}% — {{ states('input_text.home_context_summary') }} (room: {{ states('sensor.home_active_room') }})", "entity_id": "input_select.home_current_activity" } }
+  ],
+  "mode": "single"
+}
