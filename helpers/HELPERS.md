@@ -30,7 +30,7 @@ flaky sensor cannot pin a room occupied.
 | `binary_sensor.master_bath_occupied` | template | closet motion |
 | `binary_sensor.basement_occupied` | template | ESP radar (movement OR occupancy_or_movement) |
 | `binary_sensor.basement_landing_occupied` | **group** | `motion_sensor_31_ac_68_motion` + `basement_door_intrusion` |
-| `binary_sensor.theater_occupied` | **group** | `esp_radar_ld1115h_occupancy_or_movement` (⚠ currently `unknown` — verify this member; also shared with `basement_occupied`) |
+| `binary_sensor.theater_occupied` | **group** | `esp_radar_ld1115h_occupancy_or_movement` (LD1115H mmWave radar — working; this radar is also referenced by `basement_occupied`) |
 | `binary_sensor.shop_occupied` | **group** | `hai_motion_shop` + `hai_motion_shopt` |
 | `binary_sensor.upstairs_hall_occupied` | template | Zigbee motion (Aqara aq2) |
 
