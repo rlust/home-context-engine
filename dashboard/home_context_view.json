@@ -1,1 +1,996 @@
-{"title":"Home Context","path":"context","icon":"mdi:brain","type":"sections","max_columns":3,"badges":[{"type":"entity","entity":"binary_sensor.home_context_engine_stalled","name":"STALLED","show_name":true,"show_state":true,"color":"red","visibility":[{"condition":"state","entity":"binary_sensor.home_context_engine_stalled","state":"on"}]},{"type":"entity","entity":"input_select.home_current_activity","show_name":true,"show_state":true},{"type":"entity","entity":"input_number.home_context_confidence","show_name":true,"show_state":true},{"type":"entity","entity":"sensor.home_active_room","show_name":true,"show_state":true},{"type":"entity","entity":"sensor.residents_present","show_name":true,"show_state":true},{"type":"entity","entity":"input_boolean.ai_actions_enabled","name":"Actions","show_name":true,"show_state":true}],"sections":[{"type":"grid","column_span":3,"background":{"color":"#1a3653","opacity":14},"cards":[{"type":"heading","heading":"Home Context","heading_style":"title","icon":"mdi:brain"},{"type":"heading","heading":"Live household context — observation only","heading_style":"subtitle"},{"type":"markdown","grid_options":{"columns":"full","rows":"auto"},"content":"## {{ states('input_select.home_current_activity') }}\n### {{ states('input_number.home_context_confidence') }}% confidence · {{ states('input_select.home_context_mode') }} mode\n\n{{ states('input_text.home_context_summary') }}\n\n📍 **{{ states('sensor.home_active_room') }}**   ·   👥 **{{ states('sensor.residents_present') }}**   ·   🕐 updated {{ relative_time(states.input_text.home_context_summary.last_changed) }} ago\n\n_Household-wide · not yet attributed to individuals · AI Actions **{{ states('input_boolean.ai_actions_enabled') | upper }}**._"},{"type":"tile","entity":"input_select.home_context_mode","name":"Mode","icon":"mdi:home-analytics","state_content":"state","features_position":"inline","features":[{"type":"select-options","style":"dropdown"}],"grid_options":{"columns":18,"rows":"auto"}},{"type":"tile","entity":"input_select.home_current_activity","name":"Activity","icon":"mdi:motion-play-outline","state_content":"state","features_position":"inline","features":[{"type":"select-options","style":"dropdown"}],"grid_options":{"columns":18,"rows":"auto"}},{"type":"tile","entity":"input_number.home_context_confidence","name":"Confidence","icon":"mdi:gauge","state_content":"state","features_position":"bottom","features":[{"type":"bar-gauge","min":0,"max":100}],"grid_options":{"columns":18,"rows":"auto"}},{"type":"tile","entity":"sensor.home_active_room","name":"Active Room(s)","icon":"mdi:home-map-marker","state_content":["state","last_changed"],"grid_options":{"columns":18,"rows":"auto"}}]},{"type":"grid","column_span":3,"background":{"color":"#1a3653","opacity":14},"cards":[{"type":"heading","heading":"Controls & Safety","heading_style":"title","icon":"mdi:tune-variant"},{"type":"tile","entity":"input_boolean.ai_context_enabled","name":"AI Context (master)","icon":"mdi:brain","state_content":["state","last_changed"],"features_position":"inline","features":[{"type":"toggle"}],"grid_options":{"columns":12,"rows":"auto"}},{"type":"tile","entity":"input_boolean.ai_actions_enabled","name":"AI Actions — SAFETY LOCK","icon":"mdi:robot-off-outline","state_content":["state","last_changed"],"features_position":"inline","features":[{"type":"toggle"}],"grid_options":{"columns":12,"rows":"auto"}},{"type":"tile","entity":"automation.home_context_evening_observer","name":"Observer","icon":"mdi:eye-outline","state_content":["state","last_triggered"],"features_position":"inline","features":[{"type":"toggle"}],"grid_options":{"columns":12,"rows":"auto"}},{"type":"tile","entity":"input_boolean.sleep_no_lights","name":"Sleep No Lights","icon":"mdi:weather-night","state_content":["state","last_changed"],"features_position":"inline","features":[{"type":"toggle"}],"grid_options":{"columns":12,"rows":"auto"}},{"type":"tile","entity":"input_boolean.home_context_guest_mode","name":"Guest Mode","icon":"mdi:account-group","state_content":["state","last_changed"],"features_position":"inline","features":[{"type":"toggle"}],"grid_options":{"columns":12,"rows":"auto"}},{"type":"tile","entity":"input_boolean.party_mode","name":"Party Mode","icon":"mdi:party-popper","state_content":["state","last_changed"],"features_position":"inline","features":[{"type":"toggle"}],"grid_options":{"columns":12,"rows":"auto"}}]},{"type":"grid","column_span":3,"background":{"color":"#5a1a1a","opacity":14},"cards":[{"type":"heading","heading":"Engine Health","heading_style":"title","icon":"mdi:heart-pulse"},{"type":"conditional","conditions":[{"condition":"state","entity":"binary_sensor.home_context_engine_stalled","state":"on"}],"card":{"type":"markdown","text":"## ⚠️ Context engine is stalled\n\nThe observer has not run in **{{ states('sensor.home_context_observer_age') }} minutes** (it should run every 5).\n\n{% if is_state('input_boolean.ai_context_enabled','off') %}**Cause: the AI Context master switch is OFF.** Everything below is frozen at the last classification.\n{% else %}Master switch is on — check the automation trace for errors.\n{% endif %}"}},{"type":"tile","entity":"binary_sensor.home_context_engine_stalled","name":"Engine Stalled","icon":"mdi:alert-octagon-outline","state_content":["state","last_changed"],"grid_options":{"columns":12,"rows":"auto"}},{"type":"tile","entity":"sensor.home_context_observer_age","name":"Since Last Observer Run","icon":"mdi:timer-sand","state_content":["state","last_changed"],"grid_options":{"columns":12,"rows":"auto"}},{"type":"tile","entity":"automation.home_context_dynamic_suggestions","name":"Suggestion Engine","icon":"mdi:lightbulb-on-outline","state_content":["state","last_triggered"],"features_position":"inline","features":[{"type":"toggle"}],"grid_options":{"columns":12,"rows":"auto"}}]},{"type":"grid","column_span":3,"background":{"color":"#1a3653","opacity":14},"cards":[{"type":"heading","heading":"Who's Home","heading_style":"title","icon":"mdi:account-multiple"},{"type":"tile","entity":"sensor.residents_present","name":"Residents Present","icon":"mdi:account-multiple-check","state_content":["state","last_changed"],"grid_options":{"columns":"full","rows":"auto"}},{"type":"tile","entity":"person.randy","name":"Randy","icon":"mdi:account","state_content":["state","last_changed"],"grid_options":{"columns":12,"rows":"auto"}},{"type":"tile","entity":"person.kim","name":"Kim","icon":"mdi:account","state_content":["state","last_changed"],"grid_options":{"columns":12,"rows":"auto"}},{"type":"tile","entity":"person.alex","name":"Alex","icon":"mdi:account","state_content":["state","last_changed"],"grid_options":{"columns":12,"rows":"auto"}}]},{"type":"grid","column_span":3,"background":{"color":"#1a3653","opacity":14},"cards":[{"type":"heading","heading":"Suggestions","heading_style":"title","icon":"mdi:lightbulb-on-outline"},{"type":"heading","heading":"Observe-only — approving changes nothing while AI Actions is OFF","heading_style":"subtitle"},{"type":"tile","entity":"input_text.home_context_suggestion","name":"Current Suggestion","icon":"mdi:lightbulb-on-outline","state_content":["state","last_changed"],"grid_options":{"columns":"full","rows":"auto"}},{"type":"button","entity":"input_button.approve_home_context_suggestion","name":"Approve","icon":"mdi:check-circle-outline","show_state":false,"grid_options":{"columns":18,"rows":"auto"}},{"type":"button","entity":"input_button.dismiss_home_context_suggestion","name":"Dismiss","icon":"mdi:close-circle-outline","show_state":false,"grid_options":{"columns":18,"rows":"auto"}},{"type":"tile","entity":"input_text.home_next_likely_activity","name":"Next Likely Activity","icon":"mdi:crystal-ball","state_content":"state","grid_options":{"columns":"full","rows":"auto"}}]},{"type":"grid","column_span":3,"background":{"color":"#1a3653","opacity":14},"cards":[{"type":"heading","heading":"Accuracy Feedback","heading_style":"title","icon":"mdi:clipboard-check-outline"},{"type":"heading","heading":"Tap when the current classification is wrong — this is how we measure accuracy","heading_style":"subtitle"},{"type":"button","entity":"input_button.home_context_mark_wrong","name":"Mark Current Classification WRONG","icon":"mdi:thumb-down-outline","show_state":false,"grid_options":{"columns":"full","rows":"auto"}},{"type":"tile","entity":"counter.home_context_corrections","name":"Corrections logged","icon":"mdi:counter","state_content":"state","grid_options":{"columns":18,"rows":"auto"}},{"type":"tile","entity":"sensor.home_context_observer_age","name":"Observer age (min)","icon":"mdi:timer-sand","state_content":"state","grid_options":{"columns":18,"rows":"auto"}},{"type":"tile","entity":"input_text.home_context_last_correction","name":"Last correction","icon":"mdi:comment-alert-outline","state_content":["state","last_changed"],"grid_options":{"columns":"full","rows":"auto"}},{"type":"markdown","grid_options":{"columns":"full","rows":"auto"},"content":"Each tap logs the current **mode / activity / confidence** and the evidence to the **logbook** and increments the counter — turning accuracy into a real number. **Target: fewer than 5 wrong per week.** The weekly review reads this history to score the engine."}]},{"type":"grid","column_span":3,"background":{"color":"#1a3653","opacity":14},"cards":[{"type":"heading","heading":"Room Presence","heading_style":"title","icon":"mdi:floor-plan"},{"type":"heading","heading":"11 rooms sensed","heading_style":"subtitle"},{"type":"tile","entity":"binary_sensor.family_room_occupied","name":"Family Room","icon":"mdi:sofa","state_content":"state","grid_options":{"columns":9,"rows":"auto"}},{"type":"tile","entity":"binary_sensor.kitchen_occupied","name":"Kitchen","icon":"mdi:fridge","state_content":"state","grid_options":{"columns":9,"rows":"auto"}},{"type":"tile","entity":"binary_sensor.office_occupied","name":"Office","icon":"mdi:desk","state_content":"state","grid_options":{"columns":9,"rows":"auto"}},{"type":"tile","entity":"binary_sensor.foyer_occupied","name":"Foyer","icon":"mdi:door-open","state_content":"state","grid_options":{"columns":9,"rows":"auto"}},{"type":"tile","entity":"binary_sensor.master_bedroom_occupied","name":"Master Bedroom","icon":"mdi:bed","state_content":"state","grid_options":{"columns":9,"rows":"auto"}},{"type":"tile","entity":"binary_sensor.master_bath_occupied","name":"Master Bath","icon":"mdi:shower","state_content":"state","grid_options":{"columns":9,"rows":"auto"}},{"type":"tile","entity":"binary_sensor.theater_occupied","name":"Theater","icon":"mdi:theater","state_content":"state","grid_options":{"columns":9,"rows":"auto"}},{"type":"tile","entity":"binary_sensor.basement_landing_occupied","name":"Basement Landing","icon":"mdi:stairs-down","state_content":"state","grid_options":{"columns":9,"rows":"auto"}},{"type":"tile","entity":"binary_sensor.basement_occupied","name":"Basement","icon":"mdi:home-floor-negative-1","state_content":"state","grid_options":{"columns":9,"rows":"auto"}},{"type":"tile","entity":"binary_sensor.shop_occupied","name":"Shop","icon":"mdi:hammer-wrench","state_content":"state","grid_options":{"columns":9,"rows":"auto"}},{"type":"tile","entity":"binary_sensor.upstairs_hall_occupied","name":"Upstairs Hall","icon":"mdi:stairs-up","state_content":"state","grid_options":{"columns":9,"rows":"auto"}}]},{"type":"grid","column_span":3,"background":{"color":"#1a3653","opacity":14},"cards":[{"type":"heading","heading":"Context Signals","heading_style":"title","icon":"mdi:access-point"},{"type":"tile","entity":"binary_sensor.residents_home","name":"Residents Home","icon":"mdi:account-check","state_content":"state","grid_options":{"columns":9,"rows":"auto"}},{"type":"tile","entity":"binary_sensor.home_room_presence","name":"Any Room Presence","icon":"mdi:motion-sensor","state_content":"state","grid_options":{"columns":9,"rows":"auto"}},{"type":"tile","entity":"binary_sensor.recent_arrival","name":"Recent Arrival","icon":"mdi:door-closed","state_content":["state","last_changed"],"grid_options":{"columns":9,"rows":"auto"}},{"type":"tile","entity":"binary_sensor.exterior_door_open","name":"Exterior Door Open","icon":"mdi:door-open","state_content":["state","last_changed"],"grid_options":{"columns":9,"rows":"auto"}},{"type":"tile","entity":"binary_sensor.tv_active","name":"TV Active","icon":"mdi:television-classic","state_content":"state","grid_options":{"columns":9,"rows":"auto"}},{"type":"tile","entity":"binary_sensor.music_playing","name":"Music Playing","icon":"mdi:music","state_content":"state","grid_options":{"columns":9,"rows":"auto"}},{"type":"tile","entity":"binary_sensor.night_time","name":"Night Time","icon":"mdi:weather-night","state_content":"state","grid_options":{"columns":9,"rows":"auto"}},{"type":"tile","entity":"binary_sensor.unity_has_still_human_target","name":"Master: Still Person","icon":"mdi:sleep","state_content":"state","grid_options":{"columns":9,"rows":"auto"}},{"type":"markdown","grid_options":{"columns":"full","rows":"auto"},"content":"**Confidence model** — evidence-based; stable and room-specific signals weighted highest.\n\n| Activity | Range | Strongest evidence |\n|---|---|---|\n| Sleeping | 53–97 | night + master bedroom occupied |\n| Watching TV | 78–96 | family room occupied (+18) |\n| Working | 76–88 | office 5+ min, weekday 07:00–18:00 |\n| Cooking | 72–90 | kitchen 5+ min, meal window |\n| Listening to Music | 74–92 | music on, TV off |\n| Away | 85–90 | no residents, no room presence 45s, no recent arrival |\n\n_Dining is not yet classified — no dining-room sensor exists._"}]},{"type":"grid","column_span":3,"background":{"color":"#1a3653","opacity":14},"cards":[{"type":"heading","heading":"Last 24 Hours","heading_style":"title","icon":"mdi:chart-timeline-variant"},{"type":"history-graph","title":"Context Timeline","hours_to_show":24,"grid_options":{"columns":"full","rows":5},"entities":[{"entity":"input_select.home_context_mode","name":"Mode","color":"#7c4dff"},{"entity":"input_select.home_current_activity","name":"Activity","color":"#ffc107"},{"entity":"input_number.home_context_confidence","name":"Confidence","color":"#00bfa5"}]},{"type":"history-graph","title":"Room Occupancy","hours_to_show":24,"grid_options":{"columns":"full","rows":6},"entities":[{"entity":"binary_sensor.family_room_occupied","name":"Family Room","color":"#4caf50"},{"entity":"binary_sensor.kitchen_occupied","name":"Kitchen","color":"#ff9800"},{"entity":"binary_sensor.office_occupied","name":"Office","color":"#2196f3"},{"entity":"binary_sensor.master_bedroom_occupied","name":"Master","color":"#e91e63"},{"entity":"binary_sensor.theater_occupied","name":"Theater","color":"#9c27b0"},{"entity":"binary_sensor.basement_landing_occupied","name":"Basement Landing","color":"#795548"}]},{"type":"history-graph","title":"Doors, Media & Presence","hours_to_show":24,"grid_options":{"columns":"full","rows":5},"entities":[{"entity":"binary_sensor.tv_active","name":"TV","color":"#f44336"},{"entity":"binary_sensor.music_playing","name":"Music","color":"#00bcd4"},{"entity":"binary_sensor.exterior_door_open","name":"Door Open","color":"#ffb300"},{"entity":"binary_sensor.recent_arrival","name":"Recent Arrival","color":"#26c6da"},{"entity":"binary_sensor.residents_home","name":"Residents Home","color":"#8bc34a"}]}]}]}
+{
+  "title": "Home Context",
+  "path": "context",
+  "icon": "mdi:brain",
+  "type": "sections",
+  "max_columns": 3,
+  "badges": [
+    {
+      "type": "entity",
+      "entity": "binary_sensor.home_context_engine_stalled",
+      "name": "STALLED",
+      "show_name": true,
+      "show_state": true,
+      "color": "red",
+      "visibility": [
+        {
+          "condition": "state",
+          "entity": "binary_sensor.home_context_engine_stalled",
+          "state": "on"
+        }
+      ]
+    },
+    {
+      "type": "entity",
+      "entity": "input_select.home_current_activity",
+      "show_name": true,
+      "show_state": true
+    },
+    {
+      "type": "entity",
+      "entity": "input_number.home_context_confidence",
+      "show_name": true,
+      "show_state": true
+    },
+    {
+      "type": "entity",
+      "entity": "sensor.home_active_room",
+      "show_name": true,
+      "show_state": true
+    },
+    {
+      "type": "entity",
+      "entity": "sensor.residents_present",
+      "show_name": true,
+      "show_state": true
+    },
+    {
+      "type": "entity",
+      "entity": "input_boolean.ai_actions_enabled",
+      "name": "Actions",
+      "show_name": true,
+      "show_state": true
+    }
+  ],
+  "sections": [
+    {
+      "type": "grid",
+      "column_span": 3,
+      "background": {
+        "color": "#1a3653",
+        "opacity": 14
+      },
+      "cards": [
+        {
+          "type": "heading",
+          "heading": "Home Context",
+          "heading_style": "title",
+          "icon": "mdi:brain"
+        },
+        {
+          "type": "heading",
+          "heading": "Live household context — observation only",
+          "heading_style": "subtitle"
+        },
+        {
+          "type": "markdown",
+          "grid_options": {
+            "columns": "full",
+            "rows": "auto"
+          },
+          "content": "## {{ states('input_select.home_current_activity') }}\n### {{ states('input_number.home_context_confidence') }}% confidence · {{ states('input_select.home_context_mode') }} mode\n\n{{ states('input_text.home_context_summary') }}\n\n📍 **{{ states('sensor.home_active_room') }}**   ·   👥 **{{ states('sensor.residents_present') }}**   ·   🕐 updated {{ relative_time(states.input_text.home_context_summary.last_changed) }} ago\n\n_Household-wide · not yet attributed to individuals · AI Actions **{{ states('input_boolean.ai_actions_enabled') | upper }}**._"
+        },
+        {
+          "type": "tile",
+          "entity": "input_select.home_context_mode",
+          "name": "Mode",
+          "icon": "mdi:home-analytics",
+          "state_content": "state",
+          "features_position": "inline",
+          "features": [
+            {
+              "type": "select-options",
+              "style": "dropdown"
+            }
+          ],
+          "grid_options": {
+            "columns": 18,
+            "rows": "auto"
+          }
+        },
+        {
+          "type": "tile",
+          "entity": "input_select.home_current_activity",
+          "name": "Activity",
+          "icon": "mdi:motion-play-outline",
+          "state_content": "state",
+          "features_position": "inline",
+          "features": [
+            {
+              "type": "select-options",
+              "style": "dropdown"
+            }
+          ],
+          "grid_options": {
+            "columns": 18,
+            "rows": "auto"
+          }
+        },
+        {
+          "type": "tile",
+          "entity": "input_number.home_context_confidence",
+          "name": "Confidence",
+          "icon": "mdi:gauge",
+          "state_content": "state",
+          "features_position": "bottom",
+          "features": [
+            {
+              "type": "bar-gauge",
+              "min": 0,
+              "max": 100
+            }
+          ],
+          "grid_options": {
+            "columns": 18,
+            "rows": "auto"
+          }
+        },
+        {
+          "type": "tile",
+          "entity": "sensor.home_active_room",
+          "name": "Active Room(s)",
+          "icon": "mdi:home-map-marker",
+          "state_content": [
+            "state",
+            "last_changed"
+          ],
+          "grid_options": {
+            "columns": 18,
+            "rows": "auto"
+          }
+        }
+      ]
+    },
+    {
+      "type": "grid",
+      "column_span": 3,
+      "background": {
+        "color": "#1a3653",
+        "opacity": 14
+      },
+      "cards": [
+        {
+          "type": "heading",
+          "heading": "Controls & Safety",
+          "heading_style": "title",
+          "icon": "mdi:tune-variant"
+        },
+        {
+          "type": "tile",
+          "entity": "input_boolean.ai_context_enabled",
+          "name": "AI Context (master)",
+          "icon": "mdi:brain",
+          "state_content": [
+            "state",
+            "last_changed"
+          ],
+          "features_position": "inline",
+          "features": [
+            {
+              "type": "toggle"
+            }
+          ],
+          "grid_options": {
+            "columns": 12,
+            "rows": "auto"
+          }
+        },
+        {
+          "type": "tile",
+          "entity": "input_boolean.ai_actions_enabled",
+          "name": "AI Actions — SAFETY LOCK",
+          "icon": "mdi:robot-off-outline",
+          "state_content": [
+            "state",
+            "last_changed"
+          ],
+          "features_position": "inline",
+          "features": [
+            {
+              "type": "toggle"
+            }
+          ],
+          "grid_options": {
+            "columns": 12,
+            "rows": "auto"
+          }
+        },
+        {
+          "type": "tile",
+          "entity": "automation.home_context_evening_observer",
+          "name": "Observer",
+          "icon": "mdi:eye-outline",
+          "state_content": [
+            "state",
+            "last_triggered"
+          ],
+          "features_position": "inline",
+          "features": [
+            {
+              "type": "toggle"
+            }
+          ],
+          "grid_options": {
+            "columns": 12,
+            "rows": "auto"
+          }
+        },
+        {
+          "type": "tile",
+          "entity": "input_boolean.sleep_no_lights",
+          "name": "Sleep No Lights",
+          "icon": "mdi:weather-night",
+          "state_content": [
+            "state",
+            "last_changed"
+          ],
+          "features_position": "inline",
+          "features": [
+            {
+              "type": "toggle"
+            }
+          ],
+          "grid_options": {
+            "columns": 12,
+            "rows": "auto"
+          }
+        },
+        {
+          "type": "tile",
+          "entity": "input_boolean.home_context_guest_mode",
+          "name": "Guest Mode",
+          "icon": "mdi:account-group",
+          "state_content": [
+            "state",
+            "last_changed"
+          ],
+          "features_position": "inline",
+          "features": [
+            {
+              "type": "toggle"
+            }
+          ],
+          "grid_options": {
+            "columns": 12,
+            "rows": "auto"
+          }
+        },
+        {
+          "type": "tile",
+          "entity": "input_boolean.party_mode",
+          "name": "Party Mode",
+          "icon": "mdi:party-popper",
+          "state_content": [
+            "state",
+            "last_changed"
+          ],
+          "features_position": "inline",
+          "features": [
+            {
+              "type": "toggle"
+            }
+          ],
+          "grid_options": {
+            "columns": 12,
+            "rows": "auto"
+          }
+        }
+      ]
+    },
+    {
+      "type": "grid",
+      "column_span": 3,
+      "background": {
+        "color": "#5a1a1a",
+        "opacity": 14
+      },
+      "cards": [
+        {
+          "type": "heading",
+          "heading": "Engine Health",
+          "heading_style": "title",
+          "icon": "mdi:heart-pulse"
+        },
+        {
+          "type": "conditional",
+          "conditions": [
+            {
+              "condition": "state",
+              "entity": "binary_sensor.home_context_engine_stalled",
+              "state": "on"
+            }
+          ],
+          "card": {
+            "type": "markdown",
+            "text": "## ⚠️ Context engine is stalled\n\nThe observer has not run in **{{ states('sensor.home_context_observer_age') }} minutes** (it should run every 5).\n\n{% if is_state('input_boolean.ai_context_enabled','off') %}**Cause: the AI Context master switch is OFF.** Everything below is frozen at the last classification.\n{% else %}Master switch is on — check the automation trace for errors.\n{% endif %}"
+          }
+        },
+        {
+          "type": "tile",
+          "entity": "binary_sensor.home_context_engine_stalled",
+          "name": "Engine Stalled",
+          "icon": "mdi:alert-octagon-outline",
+          "state_content": [
+            "state",
+            "last_changed"
+          ],
+          "grid_options": {
+            "columns": 12,
+            "rows": "auto"
+          }
+        },
+        {
+          "type": "tile",
+          "entity": "sensor.home_context_observer_age",
+          "name": "Since Last Observer Run",
+          "icon": "mdi:timer-sand",
+          "state_content": [
+            "state",
+            "last_changed"
+          ],
+          "grid_options": {
+            "columns": 12,
+            "rows": "auto"
+          }
+        },
+        {
+          "type": "tile",
+          "entity": "automation.home_context_dynamic_suggestions",
+          "name": "Suggestion Engine",
+          "icon": "mdi:lightbulb-on-outline",
+          "state_content": [
+            "state",
+            "last_triggered"
+          ],
+          "features_position": "inline",
+          "features": [
+            {
+              "type": "toggle"
+            }
+          ],
+          "grid_options": {
+            "columns": 12,
+            "rows": "auto"
+          }
+        }
+      ]
+    },
+    {
+      "type": "grid",
+      "column_span": 3,
+      "background": {
+        "color": "#1a3653",
+        "opacity": 14
+      },
+      "cards": [
+        {
+          "type": "heading",
+          "heading": "Who's Home",
+          "heading_style": "title",
+          "icon": "mdi:account-multiple"
+        },
+        {
+          "type": "tile",
+          "entity": "sensor.residents_present",
+          "name": "Residents Present",
+          "icon": "mdi:account-multiple-check",
+          "state_content": [
+            "state",
+            "last_changed"
+          ],
+          "grid_options": {
+            "columns": "full",
+            "rows": "auto"
+          }
+        },
+        {
+          "type": "tile",
+          "entity": "person.randy",
+          "name": "Randy",
+          "icon": "mdi:account",
+          "state_content": [
+            "state",
+            "last_changed"
+          ],
+          "grid_options": {
+            "columns": 12,
+            "rows": "auto"
+          }
+        },
+        {
+          "type": "tile",
+          "entity": "person.kim",
+          "name": "Kim",
+          "icon": "mdi:account",
+          "state_content": [
+            "state",
+            "last_changed"
+          ],
+          "grid_options": {
+            "columns": 12,
+            "rows": "auto"
+          }
+        },
+        {
+          "type": "tile",
+          "entity": "person.alex",
+          "name": "Alex",
+          "icon": "mdi:account",
+          "state_content": [
+            "state",
+            "last_changed"
+          ],
+          "grid_options": {
+            "columns": 12,
+            "rows": "auto"
+          }
+        }
+      ]
+    },
+    {
+      "type": "grid",
+      "column_span": 3,
+      "background": {
+        "color": "#1a3653",
+        "opacity": 14
+      },
+      "cards": [
+        {
+          "type": "heading",
+          "heading": "Suggestions",
+          "heading_style": "title",
+          "icon": "mdi:lightbulb-on-outline"
+        },
+        {
+          "type": "heading",
+          "heading": "Observe-only — approving changes nothing while AI Actions is OFF",
+          "heading_style": "subtitle"
+        },
+        {
+          "type": "tile",
+          "entity": "input_text.home_context_suggestion",
+          "name": "Current Suggestion",
+          "icon": "mdi:lightbulb-on-outline",
+          "state_content": [
+            "state",
+            "last_changed"
+          ],
+          "grid_options": {
+            "columns": "full",
+            "rows": "auto"
+          }
+        },
+        {
+          "type": "tile",
+          "entity": "input_button.approve_home_context_suggestion",
+          "name": "Approve",
+          "icon": "mdi:check-circle",
+          "color": "green",
+          "tap_action": {
+            "action": "perform-action",
+            "perform_action": "input_button.press",
+            "target": {
+              "entity_id": "input_button.approve_home_context_suggestion"
+            }
+          },
+          "grid_options": {
+            "columns": 18,
+            "rows": "auto"
+          }
+        },
+        {
+          "type": "tile",
+          "entity": "input_button.dismiss_home_context_suggestion",
+          "name": "Dismiss",
+          "icon": "mdi:close-circle",
+          "color": "red",
+          "tap_action": {
+            "action": "perform-action",
+            "perform_action": "input_button.press",
+            "target": {
+              "entity_id": "input_button.dismiss_home_context_suggestion"
+            }
+          },
+          "grid_options": {
+            "columns": 18,
+            "rows": "auto"
+          }
+        },
+        {
+          "type": "tile",
+          "entity": "input_text.home_next_likely_activity",
+          "name": "Next Likely Activity",
+          "icon": "mdi:crystal-ball",
+          "state_content": "state",
+          "grid_options": {
+            "columns": "full",
+            "rows": "auto"
+          }
+        }
+      ]
+    },
+    {
+      "type": "grid",
+      "column_span": 3,
+      "background": {
+        "color": "#1a3653",
+        "opacity": 14
+      },
+      "cards": [
+        {
+          "type": "heading",
+          "heading": "Accuracy Feedback",
+          "heading_style": "title",
+          "icon": "mdi:clipboard-check-outline"
+        },
+        {
+          "type": "heading",
+          "heading": "Tap when the current classification is wrong — this is how we measure accuracy",
+          "heading_style": "subtitle"
+        },
+        {
+          "type": "tile",
+          "entity": "input_button.home_context_mark_wrong",
+          "name": "Mark Classification WRONG",
+          "icon": "mdi:thumb-down",
+          "color": "orange",
+          "tap_action": {
+            "action": "perform-action",
+            "perform_action": "input_button.press",
+            "target": {
+              "entity_id": "input_button.home_context_mark_wrong"
+            }
+          },
+          "grid_options": {
+            "columns": "full",
+            "rows": "auto"
+          }
+        },
+        {
+          "type": "tile",
+          "entity": "counter.home_context_corrections",
+          "name": "Corrections logged",
+          "icon": "mdi:counter",
+          "state_content": "state",
+          "grid_options": {
+            "columns": 18,
+            "rows": "auto"
+          }
+        },
+        {
+          "type": "tile",
+          "entity": "sensor.home_context_observer_age",
+          "name": "Observer age (min)",
+          "icon": "mdi:timer-sand",
+          "state_content": "state",
+          "grid_options": {
+            "columns": 18,
+            "rows": "auto"
+          }
+        },
+        {
+          "type": "tile",
+          "entity": "input_text.home_context_last_correction",
+          "name": "Last correction",
+          "icon": "mdi:comment-alert-outline",
+          "state_content": [
+            "state",
+            "last_changed"
+          ],
+          "grid_options": {
+            "columns": "full",
+            "rows": "auto"
+          }
+        },
+        {
+          "type": "markdown",
+          "grid_options": {
+            "columns": "full",
+            "rows": "auto"
+          },
+          "content": "Each tap logs the current **mode / activity / confidence** and the evidence to the **logbook** and increments the counter — turning accuracy into a real number. **Target: fewer than 5 wrong per week.** The weekly review reads this history to score the engine."
+        }
+      ]
+    },
+    {
+      "type": "grid",
+      "column_span": 3,
+      "background": {
+        "color": "#1a3653",
+        "opacity": 14
+      },
+      "cards": [
+        {
+          "type": "heading",
+          "heading": "Room Presence",
+          "heading_style": "title",
+          "icon": "mdi:floor-plan"
+        },
+        {
+          "type": "heading",
+          "heading": "12 rooms sensed",
+          "heading_style": "subtitle"
+        },
+        {
+          "type": "tile",
+          "entity": "binary_sensor.family_room_occupied",
+          "name": "Family Room",
+          "icon": "mdi:sofa",
+          "state_content": "state",
+          "grid_options": {
+            "columns": 9,
+            "rows": "auto"
+          }
+        },
+        {
+          "type": "tile",
+          "entity": "binary_sensor.kitchen_occupied",
+          "name": "Kitchen",
+          "icon": "mdi:fridge",
+          "state_content": "state",
+          "grid_options": {
+            "columns": 9,
+            "rows": "auto"
+          }
+        },
+        {
+          "type": "tile",
+          "entity": "binary_sensor.office_occupied",
+          "name": "Office",
+          "icon": "mdi:desk",
+          "state_content": "state",
+          "grid_options": {
+            "columns": 9,
+            "rows": "auto"
+          }
+        },
+        {
+          "type": "tile",
+          "entity": "binary_sensor.foyer_occupied",
+          "name": "Foyer",
+          "icon": "mdi:door-open",
+          "state_content": "state",
+          "grid_options": {
+            "columns": 9,
+            "rows": "auto"
+          }
+        },
+        {
+          "type": "tile",
+          "entity": "binary_sensor.master_bedroom_occupied",
+          "name": "Master Bedroom",
+          "icon": "mdi:bed",
+          "state_content": "state",
+          "grid_options": {
+            "columns": 9,
+            "rows": "auto"
+          }
+        },
+        {
+          "type": "tile",
+          "entity": "binary_sensor.master_bath_occupied",
+          "name": "Master Bath",
+          "icon": "mdi:shower",
+          "state_content": "state",
+          "grid_options": {
+            "columns": 9,
+            "rows": "auto"
+          }
+        },
+        {
+          "type": "tile",
+          "entity": "binary_sensor.theater_occupied",
+          "name": "Theater",
+          "icon": "mdi:theater",
+          "state_content": "state",
+          "grid_options": {
+            "columns": 9,
+            "rows": "auto"
+          }
+        },
+        {
+          "type": "tile",
+          "entity": "binary_sensor.basement_landing_occupied",
+          "name": "Basement Landing",
+          "icon": "mdi:stairs-down",
+          "state_content": "state",
+          "grid_options": {
+            "columns": 9,
+            "rows": "auto"
+          }
+        },
+        {
+          "type": "tile",
+          "entity": "binary_sensor.basement_occupied",
+          "name": "Basement",
+          "icon": "mdi:home-floor-negative-1",
+          "state_content": "state",
+          "grid_options": {
+            "columns": 9,
+            "rows": "auto"
+          }
+        },
+        {
+          "type": "tile",
+          "entity": "binary_sensor.shop_occupied",
+          "name": "Shop",
+          "icon": "mdi:hammer-wrench",
+          "state_content": "state",
+          "grid_options": {
+            "columns": 9,
+            "rows": "auto"
+          }
+        },
+        {
+          "type": "tile",
+          "entity": "binary_sensor.upstairs_hall_occupied",
+          "name": "Upstairs Hall",
+          "icon": "mdi:stairs-up",
+          "state_content": "state",
+          "grid_options": {
+            "columns": 9,
+            "rows": "auto"
+          }
+        },
+        {
+          "type": "tile",
+          "entity": "binary_sensor.garage_occupied",
+          "name": "Garage",
+          "icon": "mdi:garage",
+          "state_content": "state",
+          "grid_options": {
+            "columns": 9,
+            "rows": "auto"
+          }
+        }
+      ]
+    },
+    {
+      "type": "grid",
+      "column_span": 3,
+      "background": {
+        "color": "#1a3653",
+        "opacity": 14
+      },
+      "cards": [
+        {
+          "type": "heading",
+          "heading": "Context Signals",
+          "heading_style": "title",
+          "icon": "mdi:access-point"
+        },
+        {
+          "type": "tile",
+          "entity": "binary_sensor.residents_home",
+          "name": "Residents Home",
+          "icon": "mdi:account-check",
+          "state_content": "state",
+          "grid_options": {
+            "columns": 9,
+            "rows": "auto"
+          }
+        },
+        {
+          "type": "tile",
+          "entity": "binary_sensor.home_room_presence",
+          "name": "Any Room Presence",
+          "icon": "mdi:motion-sensor",
+          "state_content": "state",
+          "grid_options": {
+            "columns": 9,
+            "rows": "auto"
+          }
+        },
+        {
+          "type": "tile",
+          "entity": "binary_sensor.recent_arrival",
+          "name": "Recent Arrival",
+          "icon": "mdi:door-closed",
+          "state_content": [
+            "state",
+            "last_changed"
+          ],
+          "grid_options": {
+            "columns": 9,
+            "rows": "auto"
+          }
+        },
+        {
+          "type": "tile",
+          "entity": "binary_sensor.exterior_door_open",
+          "name": "Exterior Door Open",
+          "icon": "mdi:door-open",
+          "state_content": [
+            "state",
+            "last_changed"
+          ],
+          "grid_options": {
+            "columns": 9,
+            "rows": "auto"
+          }
+        },
+        {
+          "type": "tile",
+          "entity": "binary_sensor.tv_active",
+          "name": "TV Active",
+          "icon": "mdi:television-classic",
+          "state_content": "state",
+          "grid_options": {
+            "columns": 9,
+            "rows": "auto"
+          }
+        },
+        {
+          "type": "tile",
+          "entity": "binary_sensor.music_playing",
+          "name": "Music Playing",
+          "icon": "mdi:music",
+          "state_content": "state",
+          "grid_options": {
+            "columns": 9,
+            "rows": "auto"
+          }
+        },
+        {
+          "type": "tile",
+          "entity": "binary_sensor.night_time",
+          "name": "Night Time",
+          "icon": "mdi:weather-night",
+          "state_content": "state",
+          "grid_options": {
+            "columns": 9,
+            "rows": "auto"
+          }
+        },
+        {
+          "type": "tile",
+          "entity": "binary_sensor.unity_has_still_human_target",
+          "name": "Master: Still Person",
+          "icon": "mdi:sleep",
+          "state_content": "state",
+          "grid_options": {
+            "columns": 9,
+            "rows": "auto"
+          }
+        },
+        {
+          "type": "markdown",
+          "grid_options": {
+            "columns": "full",
+            "rows": "auto"
+          },
+          "content": "**Confidence model** — evidence-based; stable and room-specific signals weighted highest.\n\n| Activity | Range | Strongest evidence |\n|---|---|---|\n| Sleeping | 53–97 | night + master bedroom occupied |\n| Watching TV | 78–96 | family room occupied (+18) |\n| Working | 76–88 | office 5+ min, weekday 07:00–18:00 |\n| Cooking | 72–90 | kitchen 5+ min, meal window |\n| Listening to Music | 74–92 | music on, TV off |\n| Away | 85–90 | no residents, no room presence 45s, no recent arrival |\n\n_Dining is not yet classified — no dining-room sensor exists._"
+        }
+      ]
+    },
+    {
+      "type": "grid",
+      "column_span": 3,
+      "background": {
+        "color": "#1a3653",
+        "opacity": 14
+      },
+      "cards": [
+        {
+          "type": "heading",
+          "heading": "Last 24 Hours",
+          "heading_style": "title",
+          "icon": "mdi:chart-timeline-variant"
+        },
+        {
+          "type": "history-graph",
+          "title": "Context Timeline",
+          "hours_to_show": 24,
+          "grid_options": {
+            "columns": "full",
+            "rows": 5
+          },
+          "entities": [
+            {
+              "entity": "input_select.home_context_mode",
+              "name": "Mode",
+              "color": "#7c4dff"
+            },
+            {
+              "entity": "input_select.home_current_activity",
+              "name": "Activity",
+              "color": "#ffc107"
+            },
+            {
+              "entity": "input_number.home_context_confidence",
+              "name": "Confidence",
+              "color": "#00bfa5"
+            }
+          ]
+        },
+        {
+          "type": "history-graph",
+          "title": "Room Occupancy",
+          "hours_to_show": 24,
+          "grid_options": {
+            "columns": "full",
+            "rows": 6
+          },
+          "entities": [
+            {
+              "entity": "binary_sensor.family_room_occupied",
+              "name": "Family Room",
+              "color": "#4caf50"
+            },
+            {
+              "entity": "binary_sensor.kitchen_occupied",
+              "name": "Kitchen",
+              "color": "#ff9800"
+            },
+            {
+              "entity": "binary_sensor.office_occupied",
+              "name": "Office",
+              "color": "#2196f3"
+            },
+            {
+              "entity": "binary_sensor.master_bedroom_occupied",
+              "name": "Master",
+              "color": "#e91e63"
+            },
+            {
+              "entity": "binary_sensor.theater_occupied",
+              "name": "Theater",
+              "color": "#9c27b0"
+            },
+            {
+              "entity": "binary_sensor.basement_landing_occupied",
+              "name": "Basement Landing",
+              "color": "#795548"
+            }
+          ]
+        },
+        {
+          "type": "history-graph",
+          "title": "Doors, Media & Presence",
+          "hours_to_show": 24,
+          "grid_options": {
+            "columns": "full",
+            "rows": 5
+          },
+          "entities": [
+            {
+              "entity": "binary_sensor.tv_active",
+              "name": "TV",
+              "color": "#f44336"
+            },
+            {
+              "entity": "binary_sensor.music_playing",
+              "name": "Music",
+              "color": "#00bcd4"
+            },
+            {
+              "entity": "binary_sensor.exterior_door_open",
+              "name": "Door Open",
+              "color": "#ffb300"
+            },
+            {
+              "entity": "binary_sensor.recent_arrival",
+              "name": "Recent Arrival",
+              "color": "#26c6da"
+            },
+            {
+              "entity": "binary_sensor.residents_home",
+              "name": "Residents Home",
+              "color": "#8bc34a"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
