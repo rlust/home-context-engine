@@ -15,7 +15,7 @@ not YAML. This file documents their definitions for reference.
 | `binary_sensor.exterior_door_open` | `{{ is_state('binary_sensor.hai_front_door','on') or is_state('binary_sensor.hai_garage_door','on') or is_state('binary_sensor.hai_deck_door','on') or states('cover.gdo1_door') in ['open','opening'] or states('cover.grgdo1_door') in ['open','opening'] }}` |
 | `binary_sensor.recent_arrival` | `{{ (now().timestamp() - (state_attr('input_datetime.home_last_entry','timestamp') | float(0))) < 480 }}` |
 
-## Template binary sensors — per-room occupancy (11 rooms)
+## Template binary sensors — per-room occupancy (12 rooms)
 
 Each ORs together the real motion / mmWave / FP2 sensors for that room so a single
 flaky sensor cannot pin a room occupied.
@@ -33,6 +33,7 @@ flaky sensor cannot pin a room occupied.
 | `binary_sensor.theater_occupied` | **group** | `esp_radar_ld1115h_occupancy_or_movement` (LD1115H mmWave radar — working; this radar is also referenced by `basement_occupied`) |
 | `binary_sensor.shop_occupied` | **group** | `hai_motion_shop` + `hai_motion_shopt` |
 | `binary_sensor.upstairs_hall_occupied` | template | Zigbee motion (Aqara aq2) |
+| `binary_sensor.garage_occupied` | template | Z-Wave garage PIR (`pir_motion_sensor_2_motion_detection`, area=Garage — live) OR the two ratgdo door-opener motions (`gdo1_motion` main + `grgdo1_motion` small, secondary). Excludes `motion_driveway` (outdoor). |
 
 > The `_occupied` helpers are HA **template** binary sensors, **except** Theater,
 > Shop, and Basement Landing, which are HA **`group`** (binary_sensor) helpers

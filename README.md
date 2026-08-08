@@ -35,7 +35,7 @@ Watching TV → Listening to Music → Waking → Active → Unknown
 | Helper | Meaning |
 |---|---|
 | `binary_sensor.residents_home` | any of person.randy / kim / alex is home |
-| `binary_sensor.home_room_presence` | any of 11 room-occupancy helpers is on |
+| `binary_sensor.home_room_presence` | any of 12 room-occupancy helpers is on |
 | `sensor.home_active_room` | names the currently occupied room(s) |
 | `binary_sensor.tv_active` | the LG webOS TV is on (not the always-on DVR) |
 | `binary_sensor.music_playing` | a music source is playing and the TV is off |
@@ -43,7 +43,7 @@ Watching TV → Listening to Music → Waking → Active → Unknown
 | `binary_sensor.exterior_door_open` | any exterior door / garage is open |
 | `binary_sensor.recent_arrival` | 8 min after a front/garage-entry door opens |
 
-Eleven per-room occupancy helpers (`*_occupied`) each OR together the real
+Twelve per-room occupancy helpers (`*_occupied`) each OR together the real
 motion/mmWave/FP2 sensors for that room, so a single flaky sensor cannot pin a
 room "occupied," and movement **between** rooms re-classifies the context.
 
@@ -84,7 +84,7 @@ docs/          PLAN.md (working log) and VISION_ROADMAP.md (north star)
 
 ## Roadmap (abridged — see docs/VISION_ROADMAP.md)
 
-- **Phase 1 / 1.5 / 1.6** ✅ situational + room-level awareness (11 rooms)
+- **Phase 1 / 1.5 / 1.6** ✅ situational + room-level awareness (12 rooms)
 - **Phase 2** ✅ activity vocabulary (Working / Cooking / Music / TV)
 - **Phase 3** ◀ measurement — a "that was wrong" correction path
 - **Phase 4** suggest → then adapt (started; observe-only)
