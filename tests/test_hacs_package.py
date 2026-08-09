@@ -28,3 +28,29 @@ def test_conversation_agent_has_no_service_or_device_control_calls():
     assert "async_call" not in source
     assert "hass.services" not in source
     assert "execute_service" not in source
+
+
+
+def test_conversation_agent_implements_current_supported_languages_api():
+    tree = ast.parse((INTEGRATION / "conversation.py").read_text())
+    entity = next(
+        node
+        for node in tree.body
+        if isinstance(node, ast.ClassDef)
+        and node.name == "HomeContextMemoryConversationEntity"
+    )
+    method = next(
+        node
+        for node in entity.body
+        if isinstance(node, ast.FunctionDef) and node.name == "supported_languages"
+    )
+    assert any(
+        isinstance(decorator, ast.Name) and decorator.id == "property"
+        for decorator in method.decorator_list
+    )
+    assert any(
+        isinstance(node, ast.Return)
+        and isinstance(node.value, ast.Constant)
+        and node.value.value == "*"
+        for node in ast.walk(method)
+    )
