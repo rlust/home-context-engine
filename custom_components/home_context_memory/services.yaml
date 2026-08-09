@@ -1,0 +1,34 @@
+forget:
+  name: Forget memory
+  description: Forget matching local durable memories and/or session summaries.
+  fields:
+    scope:
+      name: Scope
+      description: Which local collection to affect.
+      required: true
+      selector:
+        select:
+          options:
+            - memories
+            - summaries
+            - all
+    query:
+      name: Query
+      description: Optional subject to forget; leave blank to clear the selected collection.
+      required: false
+      selector:
+        text:
+clear:
+  name: Clear memory collection
+  description: Clear one local memory collection; never affects devices or automations.
+  fields:
+    scope:
+      name: Scope
+      description: Which local collection to clear.
+      required: true
+      selector:
+        select:
+          options:
+            - memories
+            - summaries
+            - all
