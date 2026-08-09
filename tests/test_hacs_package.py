@@ -1,5 +1,6 @@
 import ast
 import json
+import re
 from pathlib import Path
 
 
@@ -30,7 +31,6 @@ def test_conversation_agent_has_no_service_or_device_control_calls():
     assert "execute_service" not in source
 
 
-
 def test_conversation_agent_implements_current_supported_languages_api():
     tree = ast.parse((INTEGRATION / "conversation.py").read_text())
     entity = next(
@@ -54,3 +54,46 @@ def test_conversation_agent_implements_current_supported_languages_api():
         and node.value.value == "*"
         for node in ast.walk(method)
     )
+
+
+def _literal_assignment(path: Path, name: str):
+    tree = ast.parse(path.read_text())
+    assignment = next(
+        node
+        for node in tree.body
+        if isinstance(node, ast.Assign)
+        and any(isinstance(target, ast.Name) and target.id == name for target in node.targets)
+    )
+    return ast.literal_eval(assignment.value)
+
+
+def _words(text: str) -> set[str]:
+    return {word for word in re.findall(r"[a-z0-9']+", text.lower()) if len(word) > 2}
+
+
+def test_family_recall_matches_explicit_relationship_memories():
+    expansions = _literal_assignment(INTEGRATION / "storage.py", "_CONTEXT_EXPANSIONS")
+    saved = [
+        "my name is Example",
+        "my wife's name is Example",
+        "my dog's name is Example",
+    ]
+    query_words = _words("What do you remember about my family?")
+    for word in tuple(query_words):
+        query_words.update(expansions.get(word, ()))
+
+    matches = [text for text in saved if query_words & _words(text)]
+    assert matches == saved
+
+
+def test_room_light_recall_matches_category_and_related_room_queries():
+    expansions = _literal_assignment(INTEGRATION / "storage.py", "_CONTEXT_EXPANSIONS")
+    saved = "Please remember that the living room light should stay warm"
+
+    category_query = _words("What do you remember about lighting?")
+    for word in tuple(category_query):
+        category_query.update(expansions.get(word, ()))
+    related_query = _words("What do you remember about the living room?")
+
+    assert category_query & _words(saved)
+    assert related_query & _words(saved)
