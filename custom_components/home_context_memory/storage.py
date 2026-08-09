@@ -38,6 +38,11 @@ _CONTEXT_EXPANSIONS = {
     "lights": {"room", "rooms", "area", "areas", "light", "lights", "lighting"},
     "lighting": {"room", "rooms", "area", "areas", "light", "lights", "lighting"},
 }
+_TOPIC_WORDS = {
+    "family": {"family", "household", "wife", "husband", "spouse", "child", "dog", "cat", "pet"},
+    "rooms": {"room", "rooms", "area", "areas"},
+    "lighting": {"light", "lights", "lighting", "lamp", "lamps"},
+}
 
 
 def is_sensitive(text: str) -> bool:
@@ -54,6 +59,12 @@ def _expand_query_words(query_words: set[str]) -> set[str]:
     for word in query_words:
         expanded.update(_CONTEXT_EXPANSIONS.get(word, ()))
     return expanded
+
+
+def _topics(text: str) -> list[str]:
+    """Return only broad, non-content topic labels for dashboard metadata."""
+    words = _words(text)
+    return sorted(topic for topic, terms in _TOPIC_WORDS.items() if words & terms)
 
 
 def _now() -> datetime:
@@ -77,10 +88,28 @@ class MemoryStore:
             self._data = await self._store.async_load() or {"memories": [], "summaries": []}
         self._data.setdefault("memories", [])
         self._data.setdefault("summaries", [])
+        self._data.setdefault("audit", [])
         return self._data
 
     async def _save(self) -> None:
         await self._store.async_save(self._data)
+
+    async def _audit(self, action: str, scope: str, count: int = 0) -> None:
+        data = await self._get()
+        data["audit"].append({"action": action, "scope": scope, "count": count,
+                              "at": _now().isoformat()})
+        data["audit"] = data["audit"][-50:]
+        await self._save()
+
+    async def _prune_summaries(self, data: dict) -> bool:
+        cutoff = _now() - timedelta(days=self.rolling_days)
+        current = [item for item in data["summaries"] if _parse(item["updated_at"]) >= cutoff]
+        if current != data["summaries"]:
+            removed = len(data["summaries"]) - len(current)
+            data["summaries"] = current
+            await self._audit("expire", "summaries", removed)
+            return True
+        return False
 
     async def save_memory(self, text: str, tags: list[str] | None = None) -> bool:
         text = text.strip()
@@ -90,7 +119,7 @@ class MemoryStore:
         stamp = _now().isoformat()
         data["memories"].append({"id": f"memory-{int(_now().timestamp() * 1000)}", "text": text,
                                   "created_at": stamp, "updated_at": stamp,
-                                  "tags": sorted(set(tags or []))})
+                                  "tags": sorted(set(tags or []) | set(_topics(text)))})
         await self._save()
         return True
 
@@ -103,7 +132,9 @@ class MemoryStore:
             if score:
                 scored.append((score, _parse(item["updated_at"]), item))
         scored.sort(key=lambda row: (row[0], row[1]), reverse=True)
-        return [item for _, _, item in scored[:max(0, limit)]]
+        results = [item for _, _, item in scored[:max(0, limit)]]
+        await self._audit("recall", "scoped", len(results))
+        return results
 
     async def list_memories(self, limit: int = DEFAULT_MAX_RESULTS) -> list[dict]:
         data = await self._get()
@@ -118,25 +149,74 @@ class MemoryStore:
         removed = before - len(data["memories"])
         if removed:
             await self._save()
+        await self._audit("forget", "memories", removed)
         return removed
+
+    async def clear_memories(self) -> int:
+        data = await self._get()
+        removed = len(data["memories"])
+        data["memories"] = []
+        await self._audit("clear", "memories", removed)
+        return removed
+
+    async def forget_summaries(self, query: str) -> int:
+        data = await self._get()
+        query_words = _words(query)
+        before = len(data["summaries"])
+        if query_words:
+            data["summaries"] = [item for item in data["summaries"]
+                                  if not query_words & _words(item["text"] + " " + " ".join(item.get("tags", [])))]
+        else:
+            data["summaries"] = []
+        removed = before - len(data["summaries"])
+        await self._audit("forget", "summaries", removed)
+        return removed
+
+    async def clear_summaries(self) -> int:
+        return await self.forget_summaries("")
 
     async def save_summary(self, session_id: str, text: str) -> bool:
         text = text.strip()
         if not text or is_sensitive(text):
             return False
         data = await self._get()
-        cutoff = _now() - timedelta(days=self.rolling_days)
-        data["summaries"] = [item for item in data["summaries"] if _parse(item["updated_at"]) >= cutoff]
+        await self._prune_summaries(data)
         data["summaries"] = [item for item in data["summaries"] if item["session_id"] != session_id]
-        data["summaries"].append({"session_id": session_id, "text": text, "updated_at": _now().isoformat()})
+        data["summaries"].append({"session_id": session_id, "text": text, "updated_at": _now().isoformat(),
+                                   "tags": _topics(text)})
         await self._save()
         return True
 
+    async def recall_summary(self, query: str) -> dict | None:
+        data = await self._get()
+        await self._prune_summaries(data)
+        query_words = _expand_query_words(_words(query))
+        matches = []
+        for item in data["summaries"]:
+            score = len(query_words & _words(item["text"] + " " + " ".join(item.get("tags", []))))
+            if score:
+                matches.append((score, _parse(item["updated_at"]), item))
+        matches.sort(key=lambda row: (row[0], row[1]), reverse=True)
+        result = matches[0][2] if matches else None
+        await self._audit("summary_recall", "scoped", 1 if result else 0)
+        return result
+
     async def latest_summary(self) -> dict | None:
         data = await self._get()
-        cutoff = _now() - timedelta(days=self.rolling_days)
-        current = [item for item in data["summaries"] if _parse(item["updated_at"]) >= cutoff]
-        if current != data["summaries"]:
-            data["summaries"] = current
-            await self._save()
+        await self._prune_summaries(data)
+        current = data["summaries"]
         return max(current, key=lambda item: _parse(item["updated_at"]), default=None)
+
+    async def status(self) -> dict:
+        data = await self._get()
+        await self._prune_summaries(data)
+        latest = max(data["summaries"], key=lambda item: _parse(item["updated_at"]), default=None)
+        topic_counts: dict[str, int] = {}
+        for item in data["memories"] + data["summaries"]:
+            for topic in item.get("tags", []):
+                topic_counts[topic] = topic_counts.get(topic, 0) + 1
+        audit = data["audit"][-1] if data["audit"] else None
+        return {"memory_count": len(data["memories"]), "summary_count": len(data["summaries"]),
+                "latest_summary_at": latest["updated_at"] if latest else None,
+                "summary_expires_at": (_parse(latest["updated_at"]) + timedelta(days=self.rolling_days)).isoformat()
+                if latest else None, "topic_counts": topic_counts, "last_action": audit}
