@@ -17,6 +17,28 @@ _SENSITIVE = (
 )
 _WORDS = re.compile(r"[a-z0-9']+")
 
+# Small, intentional vocabulary bridges for relationship-aware recall. These
+# expand the query only; stored text is never broadened and result limits still
+# apply. Explicit room/light names continue to match through normal token
+# overlap (for example, "living room" or "kitchen light").
+_CONTEXT_EXPANSIONS = {
+    "family": {
+        "family", "household", "person", "people", "name", "names",
+        "wife", "husband", "spouse", "child", "children", "kid", "kids",
+        "dog", "cat", "pet", "pets",
+    },
+    "household": {
+        "family", "household", "person", "people", "name", "names",
+        "wife", "husband", "spouse", "child", "children", "kid", "kids",
+        "dog", "cat", "pet", "pets",
+    },
+    "room": {"room", "rooms", "area", "areas", "light", "lights", "lighting"},
+    "rooms": {"room", "rooms", "area", "areas", "light", "lights", "lighting"},
+    "light": {"room", "rooms", "area", "areas", "light", "lights", "lighting"},
+    "lights": {"room", "rooms", "area", "areas", "light", "lights", "lighting"},
+    "lighting": {"room", "rooms", "area", "areas", "light", "lights", "lighting"},
+}
+
 
 def is_sensitive(text: str) -> bool:
     return any(pattern.search(text) for pattern in _SENSITIVE)
@@ -24,6 +46,14 @@ def is_sensitive(text: str) -> bool:
 
 def _words(text: str) -> set[str]:
     return {word for word in _WORDS.findall(text.lower()) if len(word) > 2}
+
+
+def _expand_query_words(query_words: set[str]) -> set[str]:
+    """Add narrowly scoped semantic category terms to a recall query."""
+    expanded = set(query_words)
+    for word in query_words:
+        expanded.update(_CONTEXT_EXPANSIONS.get(word, ()))
+    return expanded
 
 
 def _now() -> datetime:
@@ -66,7 +96,7 @@ class MemoryStore:
 
     async def recall(self, query: str, limit: int = DEFAULT_MAX_RESULTS) -> list[dict]:
         data = await self._get()
-        query_words = _words(query)
+        query_words = _expand_query_words(_words(query))
         scored = []
         for item in data["memories"]:
             score = len(query_words & _words(item["text"] + " " + " ".join(item.get("tags", []))))
