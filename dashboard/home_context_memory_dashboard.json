@@ -1,0 +1,70 @@
+{
+  "title": "Home Context Memory",
+  "url_path": "home-context-memory",
+  "require_admin": true,
+  "show_in_sidebar": true,
+  "icon": "mdi:brain",
+  "views": [
+    {
+      "title": "Memory",
+      "path": "memory",
+      "type": "sections",
+      "sections": [
+        {
+          "title": "Private local memory status",
+          "cards": [
+            {
+              "type": "markdown",
+              "content": "## Home Context Memory\n\nPrivate, local, observe-only continuity for Assist. Durable saves are explicit. Session topics expire after 30 days. This dashboard shows metadata only; saved text is not displayed here."
+            },
+            {
+              "type": "tile",
+              "entity": "sensor.home_context_memory_durable_memory_count",
+              "name": "Durable memories"
+            },
+            {
+              "type": "tile",
+              "entity": "sensor.home_context_memory_session_summary_count",
+              "name": "Session summaries"
+            },
+            {
+              "type": "tile",
+              "entity": "sensor.home_context_memory_session_continuity_expiry",
+              "name": "Continuity expires"
+            },
+            {
+              "type": "tile",
+              "entity": "sensor.home_context_memory_last_memory_audit_action",
+              "name": "Last audit action"
+            }
+          ]
+        },
+        {
+          "title": "Deliberate local clearing",
+          "cards": [
+            {
+              "type": "button",
+              "entity": "button.home_context_memory_forget_session_summaries",
+              "name": "Forget session summaries",
+              "icon": "mdi:message-badge-outline",
+              "show_state": false,
+              "tap_action": {"action": "toggle"}
+            },
+            {
+              "type": "button",
+              "entity": "button.home_context_memory_forget_durable_memories",
+              "name": "Forget durable memories",
+              "icon": "mdi:brain-off",
+              "show_state": false,
+              "tap_action": {"action": "toggle"}
+            },
+            {
+              "type": "markdown",
+              "content": "These controls affect only the Home Context Memory store. They do not change Home Context observer helpers, automations, devices, or Assist pipeline preference."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
