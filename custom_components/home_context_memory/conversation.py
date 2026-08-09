@@ -8,6 +8,7 @@ ordinary requests to another agent.
 from __future__ import annotations
 
 import re
+from typing import Literal
 
 from homeassistant.components import conversation
 from homeassistant.components.conversation import ConversationEntity, ConversationEntityFeature
@@ -29,13 +30,16 @@ class HomeContextMemoryConversationEntity(ConversationEntity):
     _attr_has_entity_name = True
     _attr_name = "Memory"
     _attr_supported_features = ConversationEntityFeature(0)
-    _attr_supported_languages = ["*"]
-
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         self.hass = hass
         self._attr_unique_id = entry.entry_id
         self._attr_device_info = {"identifiers": {(DOMAIN, entry.entry_id)}, "name": "Home Context Memory"}
         self._memory = MemoryStore(hass)
+
+    @property
+    def supported_languages(self) -> list[str] | Literal["*"]:
+        """Return all languages supported by this text-only trial agent."""
+        return "*"
 
     async def _async_handle_message(self, user_input, chat_log):
         text = user_input.text.strip()
