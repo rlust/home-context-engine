@@ -97,3 +97,30 @@ def test_room_light_recall_matches_category_and_related_room_queries():
 
     assert category_query & _words(saved)
     assert related_query & _words(saved)
+
+
+def test_continuity_is_expiring_filtered_and_scoped():
+    storage = (INTEGRATION / "storage.py").read_text()
+    conversation = (INTEGRATION / "conversation.py").read_text()
+    assert "DEFAULT_ROLLING_DAYS" in storage
+    assert "timedelta(days=self.rolling_days)" in storage
+    assert "is_sensitive(text)" in storage
+    assert "recall_summary" in conversation
+    assert "save_summary" in conversation
+    assert "latest_summary" in conversation
+    assert "list_memories(DEFAULT_MAX_RESULTS)" in conversation
+
+
+def test_forget_and_dashboard_controls_are_local_and_scoped():
+    init_source = (INTEGRATION / "__init__.py").read_text()
+    conversation = (INTEGRATION / "conversation.py").read_text()
+    button = (INTEGRATION / "button.py").read_text()
+    sensor = (INTEGRATION / "sensor.py").read_text()
+    assert 'SERVICE_FORGET = "forget"' in (INTEGRATION / "const.py").read_text()
+    assert 'SERVICE_CLEAR = "clear"' in (INTEGRATION / "const.py").read_text()
+    assert "clear_summaries" in conversation
+    assert "forget_summaries" in conversation
+    assert "async_call" not in init_source
+    assert "async_call" not in button
+    assert "item['text']" not in sensor
+    assert "topic_counts" in sensor
