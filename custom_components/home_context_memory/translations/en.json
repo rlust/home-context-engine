@@ -1,0 +1,11 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Home Context Memory",
+        "description": "Create a private, observe-only memory conversation agent. Retention and sensitive-data safeguards are fixed for this trial."
+      }
+    },
+    "abort": {"single_instance_allowed": "Only one memory agent is supported."}
+  }
+}
