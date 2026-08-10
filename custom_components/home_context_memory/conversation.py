@@ -1,8 +1,8 @@
 """Memory-only Assist conversation entity.
 
-This agent answers memory commands and reports narrowly relevant saved context.
-It deliberately has no Home Assistant service/tool calls and never delegates
-ordinary requests to another agent.
+This integration provides a memory-only agent and a separate combined agent.
+The combined agent delegates ordinary requests to the configured ChatGPT agent
+through Home Assistant's conversation API after adding a bounded local brief.
 """
 
 from __future__ import annotations
@@ -11,17 +11,27 @@ import re
 from typing import Literal
 
 from homeassistant.components import conversation
-from homeassistant.components.conversation import ConversationEntity, ConversationEntityFeature
+from homeassistant.components.conversation import (
+    ConversationEntity,
+    ConversationEntityFeature,
+    async_converse,
+)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.intent import IntentResponse
 from .const import DEFAULT_MAX_RESULTS, DOMAIN
 from .storage import MemoryStore
+from .context_brief import build_context_brief
+
+CHATGPT_AGENT = "conversation.chatgpt_new"
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
-    async_add_entities([HomeContextMemoryConversationEntity(hass, entry)])
+    async_add_entities([
+        HomeContextMemoryConversationEntity(hass, entry),
+        HomeContextChatGPTConversationEntity(hass, entry),
+    ])
 
 
 class HomeContextMemoryConversationEntity(ConversationEntity):
@@ -108,4 +118,53 @@ class HomeContextMemoryConversationEntity(ConversationEntity):
             response=response,
             conversation_id=user_input.conversation_id,
             continue_conversation=False,
+        )
+
+
+class HomeContextChatGPTConversationEntity(HomeContextMemoryConversationEntity):
+    """Combined trial agent that delegates ordinary turns to ChatGPT."""
+
+    _attr_name = "Memory + ChatGPT Control"
+
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
+        super().__init__(hass, entry)
+        self._attr_unique_id = f"{entry.entry_id}_chatgpt"
+
+    async def _async_handle_message(self, user_input, chat_log):
+        text = user_input.text.strip()
+        lowered = text.lower()
+        if lowered.startswith(("remember ", "remember that ", "forget ", "delete memory ")) or lowered in {
+            "recall", "what do you remember", "what do you remember?"
+        }:
+            return await super()._async_handle_message(user_input, chat_log)
+
+        memories = await self._memory.recall(text, 3)
+        summary = await self._memory.recall_summary(text)
+        brief = build_context_brief(self.hass, text, memories, summary)
+        await self._memory.record_context_brief(brief.categories, brief.sources, brief.memory_count)
+        result = await async_converse(
+            hass=self.hass,
+            text=text,
+            conversation_id=user_input.conversation_id,
+            context=user_input.context,
+            language=user_input.language,
+            agent_id=CHATGPT_AGENT,
+            device_id=user_input.device_id,
+            satellite_id=user_input.satellite_id,
+            extra_system_prompt=brief.text,
+        )
+        response = IntentResponse(language=user_input.language)
+        response.async_set_speech(
+            result.response.speech.get("plain", {}).get("speech", "")
+            or "I couldn't get a response from ChatGPT."
+        )
+        summary_text = re.sub(r"\s+", " ", text).strip()[:200]
+        await self._memory.save_summary(
+            user_input.conversation_id or "assist-session",
+            f"Conversation topic: {summary_text}",
+        )
+        return conversation.ConversationResult(
+            response=response,
+            conversation_id=result.conversation_id or user_input.conversation_id,
+            continue_conversation=result.continue_conversation,
         )
