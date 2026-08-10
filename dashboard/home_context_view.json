@@ -569,6 +569,17 @@
         },
         {
           "type": "tile",
+          "entity": "input_datetime.home_context_measurement_start",
+          "name": "Measuring since",
+          "icon": "mdi:calendar-start",
+          "state_content": "state",
+          "grid_options": {
+            "columns": 18,
+            "rows": "auto"
+          }
+        },
+        {
+          "type": "tile",
           "entity": "sensor.home_context_observer_age",
           "name": "Observer age (min)",
           "icon": "mdi:timer-sand",

@@ -91,6 +91,12 @@ whenever the current classification is wrong; the automation snapshots the momen
 | `input_button.home_context_mark_wrong` | input_button | Tap when the current classification is incorrect |
 | `counter.home_context_corrections` | counter | Running count of wrong flags (target: **< 5 / week**) |
 | `input_text.home_context_last_correction` | input_text (255) | Human-readable snapshot of the last flag |
+| `input_datetime.home_context_measurement_start` | input_datetime | When the measurement week began (accuracy is scored from here) |
+
+**Measurement week started 2026-08-09 21:52.** The Monday review is start-date-aware
+and won't green-light Phase 4 until a full ≥7-day window shows **< 5 wrong/week**. The
+Mark-WRONG button is on both the context dashboard (Accuracy Feedback) and the
+**Home Command Mobile** dashboard; the context dashboard also shows a "Measuring since" tile.
 
 `automation.home_context_mark_wrong` (see `../automations/`) fires on the button:
 it increments the counter, writes the snapshot (`mode / activity / confidence /
