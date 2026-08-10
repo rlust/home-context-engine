@@ -18,6 +18,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         MemoryStatusSensor(store, "summary_count", "Session summary count", "mdi:message-text-clock"),
         MemoryStatusSensor(store, "summary_expires_at", "Session continuity expiry", "mdi:calendar-clock"),
         MemoryStatusSensor(store, "last_action", "Last memory audit action", "mdi:history"),
+        MemoryStatusSensor(store, "context_brief", "ChatGPT context brief", "mdi:message-badge"),
+        MemoryStatusSensor(store, "context_brief_categories", "ChatGPT context categories", "mdi:shape-outline"),
     ]
     hass.data[DOMAIN]["status_entities"].extend(entities)
     async_add_entities(entities)
@@ -45,6 +47,10 @@ class MemoryStatusSensor(SensorEntity):
             self._attr_native_value = status["summary_count"]
         elif self._key == "summary_expires_at":
             self._attr_native_value = status["summary_expires_at"] or "none"
+        elif self._key == "context_brief":
+            self._attr_native_value = "supplied" if status["context_brief_supplied"] else "none"
+        elif self._key == "context_brief_categories":
+            self._attr_native_value = ", ".join(status["context_brief_categories"]) or "none"
         else:
             action = status["last_action"]
             self._attr_native_value = action["action"] if action else "none"
@@ -52,4 +58,7 @@ class MemoryStatusSensor(SensorEntity):
             "topic_counts": status["topic_counts"],
             "last_action_scope": (status["last_action"] or {}).get("scope"),
             "last_action_at": (status["last_action"] or {}).get("at"),
+            "context_brief_sources": status["context_brief_sources"],
+            "context_brief_memory_count": status["context_brief_memory_count"],
+            "context_brief_at": status["context_brief_at"],
         }
