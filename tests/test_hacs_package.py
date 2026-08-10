@@ -124,3 +124,27 @@ def test_forget_and_dashboard_controls_are_local_and_scoped():
     assert "async_call" not in button
     assert "item['text']" not in sensor
     assert "topic_counts" in sensor
+
+
+def test_combined_agent_delegates_via_supported_conversation_api():
+    conversation = (INTEGRATION / "conversation.py").read_text()
+    assert "async_converse" in conversation
+    assert "agent_id=CHATGPT_AGENT" in conversation
+    assert "extra_system_prompt=brief.text" in conversation
+    assert "conversation.chatgpt_new" in conversation
+
+
+def test_context_brief_is_request_scoped_and_metadata_only():
+    brief = (INTEGRATION / "context_brief.py").read_text()
+    assert "selected_categories" in brief
+    assert "CONTEXT_ENTITIES" in brief
+    assert "memory_count" in brief
+    assert "async_call" not in brief
+
+
+def test_context_audit_records_metadata_without_brief_text():
+    storage = (INTEGRATION / "storage.py").read_text()
+    section = storage[storage.index("record_context_brief"):]
+    assert '"context_brief"' in section
+    assert '"categories"' in section and '"sources"' in section
+    assert '"text":' not in section
