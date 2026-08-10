@@ -26,7 +26,7 @@ flaky sensor cannot pin a room occupied.
 | `binary_sensor.kitchen_occupied` | template | kitchen motion group + kitchen occupancy group + FP2 zone 2 |
 | `binary_sensor.office_occupied` | template | 3 ESPHome presence sensors |
 | `binary_sensor.foyer_occupied` | template | ESPHome presence sensor |
-| `binary_sensor.master_bedroom_occupied` | template | 3 mmWave (human / moving / still) + 2 motion sensors |
+| `binary_sensor.master_bedroom_occupied` | template | `master_bed_presence` (clean in-bed) + Unity mmWave has_human / has_moving / has_still human target (`master_motion_mater_unity_…`) + `multisensor_motion`. NOTE: Unity was renamed to the long `master_motion_mater_unity_*` IDs; the old short `unity_has_*` + `plate04_motion` refs were dead — fixed 08-08. Energy/distance sensors kept for diagnostics only. |
 | `binary_sensor.master_bath_occupied` | template | closet motion |
 | `binary_sensor.basement_occupied` | template | ESP radar (movement OR occupancy_or_movement) |
 | `binary_sensor.basement_landing_occupied` | **group** | `motion_sensor_31_ac_68_motion` + `basement_door_intrusion` |

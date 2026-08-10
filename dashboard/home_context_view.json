@@ -854,7 +854,7 @@
         },
         {
           "type": "tile",
-          "entity": "binary_sensor.unity_has_still_human_target",
+          "entity": "binary_sensor.master_motion_mater_unity_motion_mater_unity_has_still_human_target",
           "name": "Master: Still Person",
           "icon": "mdi:sleep",
           "state_content": "state",
