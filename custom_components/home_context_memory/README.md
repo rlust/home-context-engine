@@ -1,7 +1,10 @@
 # Home Context Memory
 
-Private, local, observe-only Home Assistant conversation agent for the Home
-Context Engine trial.
+Private, local Home Assistant conversation agents for the Home Context Engine
+trial. The original Memory agent remains memory-only. A separate combined
+agent, **Memory + ChatGPT Control**, delegates ordinary requests to the existing
+`conversation.chatgpt_new` agent through Home Assistant's supported conversation
+API after adding a bounded, request-scoped context brief.
 
 ## HACS installation
 
@@ -17,10 +20,11 @@ user.
 
 ## Safety and storage
 
-The agent never calls Home Assistant services, exposes no LLM tools, changes no
-entity, and does not delegate ordinary requests to another conversation agent.
-It supports explicit `remember`, `recall`, and `forget` language only. Other
-requests return relevant saved memory or a no-match response.
+The memory-only agent never calls Home Assistant services or exposes LLM tools.
+The combined agent adds no custom service/device calls, but intentionally retains
+the full configured control capability of Chat GPT New, including its normal
+Home Assistant confirmations and the existing `ai_actions_enabled` gate. Select
+it only as a separate trial pipeline; it does not replace Chat GPT New.
 
 Facts and short summaries are persisted through Home Assistant's `Store`
 helper under `.storage`; the integration never edits `.storage` directly.
@@ -36,10 +40,12 @@ durable memories and summaries. Explicit dashboard buttons provide separate,
 deliberate clears for summaries and durable memories.
 
 The integration also exposes metadata-only diagnostic entities: durable-memory
-count, session-summary count, summary expiry, and last audit action. They expose
-counts, timestamps, broad topic labels, and scopes—not saved text. Optional
-read-only Home Context mode/activity helpers are used only as local context
-hints when creating a session topic; no Home Assistant service is called.
+count, session-summary count, summary expiry, last audit action, whether a
+ChatGPT brief was supplied, and broad context categories. They expose counts,
+timestamps, topic/category labels, and scopes—not saved text. The combined agent
+reads only exact selected Home Context entities whose category matches the
+current request, plus relevant saved memory/session continuity. It does not send
+full device inventories or persistent audit history from this integration.
 
 ### Newark dashboard
 
@@ -49,5 +55,6 @@ and provides two scoped local clear buttons. It never controls lights, devices,
 automations, or the preferred Assist pipeline.
 
 The existing Home Context Observer and `input_boolean.ai_actions_enabled` are
-unmodified. This package is a selectable memory-only trial, not a replacement
-for the preferred Chat GPT New pipeline.
+unmodified. This package provides selectable side-by-side memory-only and
+Home Context + ChatGPT Control trials, not a replacement for the preferred Chat
+GPT New pipeline.
