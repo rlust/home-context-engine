@@ -30,14 +30,16 @@ flaky sensor cannot pin a room occupied.
 | `binary_sensor.master_bath_occupied` | template | closet motion |
 | `binary_sensor.basement_occupied` | template | ESP radar (movement OR occupancy_or_movement) |
 | `binary_sensor.basement_landing_occupied` | **group** | `motion_sensor_31_ac_68_motion` + `basement_door_intrusion` |
-| `binary_sensor.theater_occupied` | **group** | `esp_radar_ld1115h_occupancy_or_movement` (LD1115H mmWave radar — working; this radar is also referenced by `basement_occupied`) |
+| `binary_sensor.theater_occupied` | template | LD1115H mmWave radar (`esp_radar_ld1115h_movement` OR `_occupancy_or_movement`) — same radar as `basement_occupied`. Converted group→template 08-08 so an offline radar degrades to `off` (a group reported `unavailable`, which poisoned `home_active_room` → "unknown"). |
 | `binary_sensor.shop_occupied` | **group** | `hai_motion_shop` + `hai_motion_shopt` |
 | `binary_sensor.upstairs_hall_occupied` | template | Zigbee motion (Aqara aq2) |
 | `binary_sensor.garage_occupied` | template | Z-Wave garage PIR (`pir_motion_sensor_2_motion_detection`, area=Garage — live) OR the two ratgdo door-opener motions (`gdo1_motion` main + `grgdo1_motion` small, secondary). Excludes `motion_driveway` (outdoor). |
 
-> The `_occupied` helpers are HA **template** binary sensors, **except** Theater,
-> Shop, and Basement Landing, which are HA **`group`** (binary_sensor) helpers
-> (added by a later session).
+> The `_occupied` helpers are HA **template** binary sensors, **except**
+> Shop and Basement Landing, which are HA **`group`** (binary_sensor) helpers.
+> (Theater was a group but was converted to a template 08-08 so a flaky radar
+> degrades to `off` instead of `unavailable` — templates using `is_state` are
+> robust to unavailable members; single-member groups are not.)
 
 ## Template sensors
 
