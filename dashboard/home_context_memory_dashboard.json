@@ -15,28 +15,36 @@
           "cards": [
             {
               "type": "markdown",
-              "content": "## Home Context Memory\n\nPrivate, local, observe-only continuity for Assist. Durable saves are explicit. Session topics expire after 30 days. This dashboard shows metadata only; saved text is not displayed here."
+              "content": "## Home Context Memory\n\nPrivate, local continuity for Assist. Durable saves are explicit. Session topics expire after 30 days. This dashboard shows metadata only; saved text is not displayed here. The separate Home Context + ChatGPT Control trial sends selected context to ChatGPT and retains the full control capability configured on Chat GPT New."
             },
             {
               "type": "tile",
-              "entity": "sensor.home_context_memory_durable_memory_count",
+              "entity": "sensor.durable_memory_count",
               "name": "Durable memories"
             },
             {
               "type": "tile",
-              "entity": "sensor.home_context_memory_session_summary_count",
+              "entity": "sensor.session_summary_count",
               "name": "Session summaries"
             },
             {
               "type": "tile",
-              "entity": "sensor.home_context_memory_session_continuity_expiry",
+              "entity": "sensor.session_continuity_expiry",
               "name": "Continuity expires"
             },
             {
               "type": "tile",
-              "entity": "sensor.home_context_memory_last_memory_audit_action",
+              "entity": "sensor.last_memory_audit_action",
               "name": "Last audit action"
             }
+          ]
+        },
+        {
+          "title": "ChatGPT context provenance",
+          "cards": [
+            {"type": "tile", "entity": "sensor.chatgpt_context_brief", "name": "Context supplied"},
+            {"type": "tile", "entity": "sensor.chatgpt_context_categories", "name": "Context categories"},
+            {"type": "markdown", "content": "The combined trial delegates ordinary requests to Chat GPT New through Home Assistant. It retains that agent's configured full-control capability and normal confirmations. The memory integration adds no custom device tools."}
           ]
         },
         {
