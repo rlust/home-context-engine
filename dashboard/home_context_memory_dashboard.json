@@ -52,7 +52,7 @@
           "cards": [
             {
               "type": "button",
-              "entity": "button.home_context_memory_forget_session_summaries",
+              "entity": "button.forget_session_summaries",
               "name": "Forget session summaries",
               "icon": "mdi:message-badge-outline",
               "show_state": false,
@@ -60,7 +60,7 @@
             },
             {
               "type": "button",
-              "entity": "button.home_context_memory_forget_durable_memories",
+              "entity": "button.forget_durable_memories",
               "name": "Forget durable memories",
               "icon": "mdi:brain-off",
               "show_state": false,
