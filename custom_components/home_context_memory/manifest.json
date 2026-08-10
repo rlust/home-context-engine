@@ -1,7 +1,7 @@
 {
   "domain": "home_context_memory",
   "name": "Home Context Memory",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "documentation": "https://github.com/rlust/home-context-engine/blob/main/custom_components/home_context_memory/README.md",
   "issue_tracker": "https://github.com/rlust/home-context-engine/issues",
   "codeowners": ["@rlust"],
