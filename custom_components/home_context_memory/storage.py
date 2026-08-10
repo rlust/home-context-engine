@@ -216,7 +216,24 @@ class MemoryStore:
             for topic in item.get("tags", []):
                 topic_counts[topic] = topic_counts.get(topic, 0) + 1
         audit = data["audit"][-1] if data["audit"] else None
+        context = data.get("context_brief") or {}
         return {"memory_count": len(data["memories"]), "summary_count": len(data["summaries"]),
                 "latest_summary_at": latest["updated_at"] if latest else None,
                 "summary_expires_at": (_parse(latest["updated_at"]) + timedelta(days=self.rolling_days)).isoformat()
-                if latest else None, "topic_counts": topic_counts, "last_action": audit}
+                if latest else None, "topic_counts": topic_counts, "last_action": audit,
+                "context_brief_supplied": bool(context.get("supplied")),
+                "context_brief_categories": context.get("categories", []),
+                "context_brief_sources": context.get("sources", []),
+                "context_brief_memory_count": int(context.get("memory_count", 0)),
+                "context_brief_at": context.get("at")}
+
+    async def record_context_brief(self, categories: tuple[str, ...], sources: tuple[str, ...], memory_count: int) -> None:
+        """Record context provenance without storing brief contents."""
+        data = await self._get()
+        stamp = _now().isoformat()
+        data["context_brief"] = {"supplied": True, "categories": list(categories),
+                                 "sources": list(sources), "memory_count": memory_count, "at": stamp}
+        data["audit"].append({"action": "context_brief", "scope": "metadata", "count": memory_count,
+                              "categories": list(categories), "sources": list(sources), "at": stamp})
+        data["audit"] = data["audit"][-50:]
+        await self._save()
