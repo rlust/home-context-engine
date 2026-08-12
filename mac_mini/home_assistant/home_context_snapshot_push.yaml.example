@@ -2,7 +2,7 @@
 # and the required Home Assistant restart for rest_command configuration.
 rest_command:
   home_context_post_snapshot:
-    url: "https://REPLACE_WITH_MAC_MINI_TAILNET_NAME/v1/home-context/snapshot"
+    url: "https://REPLACE_WITH_MAC_MINI_TAILNET_NAME:8443/v1/home-context/snapshot"
     method: POST
     headers:
       X-Home-Context-Secret: !secret home_context_receiver_secret
@@ -49,16 +49,91 @@ automation:
     description: "Observe-only export after Observer runs or a feedback button changes. No device actions."
     triggers:
       - trigger: event
+        id: observer
         event_type: automation_triggered
         event_data:
           entity_id: automation.home_context_evening_observer
       - trigger: state
+        id: feedback
         entity_id:
           - input_button.home_context_confirm
           - input_button.home_context_mark_wrong
           - input_button.home_context_mark_unsure
     actions:
-      - delay: "00:00:01"
+      - variables:
+          observer_event_time: >-
+            {{ trigger.event.time_fired.isoformat() if trigger.id == 'observer' else none }}
+          observer_context_id: >-
+            {{ trigger.event.context.id if trigger.id == 'observer' else none }}
+      - choose:
+          - conditions: "{{ trigger.id == 'observer' }}"
+            sequence:
+              - wait_template: >-
+                  {{
+                    states.input_select.home_context_mode.last_reported >= as_datetime(observer_event_time)
+                    and states.input_select.home_context_mode.context.id == observer_context_id
+                    and states.input_select.home_current_activity.last_reported >= as_datetime(observer_event_time)
+                    and states.input_select.home_current_activity.context.id == observer_context_id
+                    and states.input_number.home_context_confidence.last_reported >= as_datetime(observer_event_time)
+                    and states.input_number.home_context_confidence.context.id == observer_context_id
+                    and states.input_text.home_context_summary.last_reported >= as_datetime(observer_event_time)
+                    and states.input_text.home_context_summary.context.id == observer_context_id
+                    and states.input_text.home_next_likely_activity.last_reported >= as_datetime(observer_event_time)
+                    and states.input_text.home_next_likely_activity.context.id == observer_context_id
+                  }}
+                timeout: "00:00:10"
+                continue_on_timeout: true
+              - if:
+                  - condition: template
+                    value_template: >-
+                      {{
+                        states.input_select.home_context_mode.last_reported >= as_datetime(observer_event_time)
+                        and states.input_select.home_context_mode.context.id == observer_context_id
+                        and states.input_select.home_current_activity.last_reported >= as_datetime(observer_event_time)
+                        and states.input_select.home_current_activity.context.id == observer_context_id
+                        and states.input_number.home_context_confidence.last_reported >= as_datetime(observer_event_time)
+                        and states.input_number.home_context_confidence.context.id == observer_context_id
+                        and states.input_text.home_context_summary.last_reported >= as_datetime(observer_event_time)
+                        and states.input_text.home_context_summary.context.id == observer_context_id
+                        and states.input_text.home_next_likely_activity.last_reported >= as_datetime(observer_event_time)
+                        and states.input_text.home_next_likely_activity.context.id == observer_context_id
+                      }}
+                then: []
+                else:
+                  - action: system_log.write
+                    data:
+                      level: warning
+                      message: "Home Context snapshot export stopped: Observer helper coherence timeout."
+                  - stop: "Observer helper coherence proof did not complete; no snapshot was posted."
+                    error: true
+          - conditions: "{{ trigger.id == 'feedback' }}"
+            sequence:
+              - delay: "00:00:01"
+              - wait_template: >-
+                  {{
+                    state_attr('automation.home_context_evening_observer', 'current') is not none
+                    and state_attr('automation.home_context_evening_observer', 'current') | int == 0
+                  }}
+                timeout: "00:00:10"
+                continue_on_timeout: true
+              - if:
+                  - condition: template
+                    value_template: >-
+                      {{
+                        state_attr('automation.home_context_evening_observer', 'current') is not none
+                        and state_attr('automation.home_context_evening_observer', 'current') | int == 0
+                      }}
+                then: []
+                else:
+                  - action: system_log.write
+                    data:
+                      level: warning
+                      message: "Home Context feedback export stopped: Observer completion was not provable."
+                  - stop: "Observer was active or its completion state was unavailable; no feedback snapshot was posted."
+                    error: true
+        default:
+          - stop: "Unrecognized snapshot-export trigger; no snapshot was posted."
+            error: true
       - continue_on_error: true
         action: rest_command.home_context_post_snapshot
     mode: queued

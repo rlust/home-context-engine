@@ -21,6 +21,7 @@ SECRET_HEADER = "X-Home-Context-Secret"
 MAX_BODY_BYTES = 65_536
 MAX_SKEW_SECONDS = 600
 READ_TIMEOUT_SECONDS = 5
+MIN_SECRET_BYTES = 32
 
 
 class ReceiverError(ValueError):
@@ -81,12 +82,13 @@ class SnapshotReceiver:
         output: Path,
         now: Callable[[], datetime] | None = None,
     ):
-        if not secret:
-            raise ReceiverError("receiver secret is required")
+        encoded_secret = secret.encode("utf-8")
+        if len(encoded_secret) < MIN_SECRET_BYTES:
+            raise ReceiverError("receiver secret must contain at least 32 bytes")
         paths = {replay_database.resolve(), normalizer_database.resolve(), output.resolve()}
         if len(paths) != 3:
             raise ReceiverError("replay, normalizer-state, and output paths must be distinct")
-        self._secret = secret.encode("utf-8")
+        self._secret = encoded_secret
         self._replay = ReplayStore(replay_database)
         self._normalizer_database = normalizer_database
         self._output = output
@@ -224,5 +226,6 @@ def build_server(host: str, port: int, receiver: SnapshotReceiver) -> ThreadingH
     if not 0 <= port <= 65535:
         raise ReceiverError("receiver port must be from 0 to 65535")
     server = ThreadingHTTPServer((host, port), make_handler(receiver))
-    server.daemon_threads = True
+    server.daemon_threads = False
+    server.block_on_close = True
     return server

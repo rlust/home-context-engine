@@ -1,9 +1,12 @@
 # REVIEW ONLY — DO NOT RUN UNTIL OWNER APPROVAL.
 # Receiver must already be bound to 127.0.0.1. Never enable Funnel.
-tailscale serve --bg --https=443 http://127.0.0.1:8765
+# Capture and review all existing mappings before adding the dedicated port.
+tailscale serve status --json > REPLACE_WITH_PRIVATE_REVIEW_DIRECTORY/serve-before.json
 
-# Read back the tailnet-only Serve configuration.
-tailscale serve status
+# Add only the reviewed Home Context mapping on dedicated HTTPS port 8443.
+tailscale serve --bg --https=8443 http://127.0.0.1:8765
+tailscale serve status --json > REPLACE_WITH_PRIVATE_REVIEW_DIRECTORY/serve-after.json
 
-# Roll back only this device's Serve configuration.
-tailscale serve reset
+# Roll back only the dedicated Home Context mapping, then prove other mappings remain.
+tailscale serve --https=8443 off
+tailscale serve status --json > REPLACE_WITH_PRIVATE_REVIEW_DIRECTORY/serve-rollback.json

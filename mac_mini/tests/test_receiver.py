@@ -8,6 +8,7 @@ import re
 import socket
 import tempfile
 import threading
+import time
 import unittest
 from datetime import datetime, timezone
 from pathlib import Path
@@ -16,6 +17,7 @@ from unittest.mock import patch
 import mac_mini.home_context_analytics.receiver as receiver_module
 
 from mac_mini.home_context_analytics.collector import collect_continuous_file
+from mac_mini.home_context_analytics.ha_export_contract import PREDICTION_HELPERS, export_ready
 from mac_mini.home_context_analytics.normalizer import REQUIRED_ENTITIES
 from mac_mini.home_context_analytics.receiver import (
     MAX_BODY_BYTES,
@@ -115,6 +117,73 @@ class ReceiverTests(unittest.TestCase):
                     output=Path(temporary_directory) / "events.jsonl",
                 )
 
+    def test_receiver_rejects_empty_and_short_secrets(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            for secret in ("", "x" * 31):
+                with self.subTest(length=len(secret)), self.assertRaisesRegex(
+                    ReceiverError, "at least 32 bytes"
+                ):
+                    SnapshotReceiver(
+                        secret=secret,
+                        replay_database=root / f"replay-{len(secret)}.sqlite3",
+                        normalizer_database=root / f"state-{len(secret)}.sqlite3",
+                        output=root / f"events-{len(secret)}.jsonl",
+                    )
+
+    def test_observer_coherence_gate_is_fail_closed_but_feedback_can_export(self) -> None:
+        event_time = "2026-08-12T18:00:00Z"
+        context_id = "01K2GQJHCJ4V1J7RBZX3HNQGNV"
+        complete = {entity_id: "2026-08-12T18:00:01Z" for entity_id in PREDICTION_HELPERS}
+        contexts = {entity_id: context_id for entity_id in PREDICTION_HELPERS}
+        partial = dict(complete)
+        partial[PREDICTION_HELPERS[-1]] = "2026-08-12T17:59:59Z"
+        self.assertFalse(
+            export_ready(
+                "observer",
+                observer_event_time=event_time,
+                observer_context_id=context_id,
+                helper_last_reported=partial,
+                helper_context_ids=contexts,
+            )
+        )
+        self.assertTrue(
+            export_ready(
+                "observer",
+                observer_event_time=event_time,
+                observer_context_id=context_id,
+                helper_last_reported=complete,
+                helper_context_ids=contexts,
+            )
+        )
+        wrong_context = dict(contexts)
+        wrong_context[PREDICTION_HELPERS[-1]] = "01K2GQK57TSZ5HAXKZB4M7RJTX"
+        self.assertFalse(
+            export_ready(
+                "observer",
+                observer_event_time=event_time,
+                observer_context_id=context_id,
+                helper_last_reported=complete,
+                helper_context_ids=wrong_context,
+            )
+        )
+        self.assertTrue(
+            export_ready(
+                "feedback",
+                observer_event_time=None,
+                helper_last_reported={},
+                observer_active=False,
+            )
+        )
+        self.assertFalse(
+            export_ready(
+                "feedback",
+                observer_event_time=None,
+                helper_last_reported={},
+                observer_active=True,
+            )
+        )
+
     def test_ha_draft_renders_only_allowlist_and_remains_observe_only(self) -> None:
         draft = (
             ROOT / "mac_mini" / "home_assistant" / "home_context_snapshot_push.yaml.example"
@@ -126,8 +195,17 @@ class ReceiverTests(unittest.TestCase):
             "timeout: 5",
             "!secret home_context_receiver_secret",
             "continue_on_error: true",
+            "observer_event_time",
+            "observer_context_id",
+            'timeout: "00:00:10"',
+            "Observer helper coherence proof did not complete; no snapshot was posted.",
+            "Observer was active or its completion state was unavailable; no feedback snapshot was posted.",
+            "state_attr('automation.home_context_evening_observer', 'current')",
         ):
             self.assertIn(required, draft)
+        for entity_id in PREDICTION_HELPERS:
+            self.assertGreaterEqual(draft.count(f"states.{entity_id}.last_reported"), 3)
+            self.assertGreaterEqual(draft.count(f"states.{entity_id}.context.id"), 2)
         for forbidden in ("light.turn_on", "lock.unlock", "ai_actions_enabled.turn_on"):
             self.assertNotIn(forbidden, draft)
 
@@ -148,7 +226,24 @@ class ReceiverTests(unittest.TestCase):
             line.strip() for line in commands.splitlines() if line.strip() and not line.startswith("#")
         ]
         self.assertTrue(any("http://127.0.0.1:8765" in line for line in executable_lines))
-        self.assertFalse(any("funnel" in line.lower() for line in executable_lines))
+        self.assertIn("tailscale serve --https=8443 off", executable_lines)
+        self.assertGreater(
+            executable_lines.index("tailscale serve --bg --https=8443 http://127.0.0.1:8765"),
+            executable_lines.index(
+                "tailscale serve status --json > REPLACE_WITH_PRIVATE_REVIEW_DIRECTORY/serve-before.json"
+            ),
+        )
+        self.assertFalse(
+            any(re.search(r"(?:^|\s)tailscale\s+funnel(?:\s|$)", line, re.I) for line in executable_lines)
+        )
+        self.assertFalse(
+            any(
+                re.search(r"(?:^|\s)tailscale\s+serve\s+reset(?:\s|$)", line, re.I)
+                for line in executable_lines
+            )
+        )
+        off_commands = [line for line in executable_lines if re.search(r"(?:^|\s)off(?:\s|$)", line)]
+        self.assertEqual(off_commands, ["tailscale serve --https=8443 off"])
 
     def test_incomplete_body_times_out_without_echo(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory, patch.object(
@@ -323,6 +418,42 @@ class ReceiverTests(unittest.TestCase):
             ):
                 self.assertEqual(path.stat().st_mode & 0o777, 0o600)
             self.assertNotIn(SECRET.encode(), (root / "replay.sqlite3").read_bytes())
+
+    def test_shutdown_waits_for_inflight_handler_before_closing_replay_store(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            harness = ReceiverHarness(Path(temporary_directory))
+            entered = threading.Event()
+            release = threading.Event()
+            client_errors: list[BaseException] = []
+            original_receive = harness.receiver.receive
+
+            def blocked_receive(**kwargs):
+                entered.set()
+                release.wait(timeout=2)
+                return original_receive(**kwargs)
+
+            harness.receiver.receive = blocked_receive
+
+            def make_request() -> None:
+                try:
+                    harness.request(body=snapshot_bytes())
+                except BaseException as exc:
+                    client_errors.append(exc)
+
+            client = threading.Thread(target=make_request)
+            client.start()
+            self.assertTrue(entered.wait(timeout=1))
+            closer = threading.Thread(target=harness.close)
+            closer.start()
+            time.sleep(0.05)
+            self.assertTrue(closer.is_alive())
+            release.set()
+            closer.join(timeout=2)
+            client.join(timeout=2)
+            self.assertFalse(closer.is_alive())
+            self.assertFalse(client.is_alive())
+            self.assertFalse(harness.thread.is_alive())
+            self.assertEqual(client_errors, [])
 
 
 if __name__ == "__main__":

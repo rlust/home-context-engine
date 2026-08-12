@@ -55,13 +55,18 @@ returns 404 and every other method returns 405. Requests require:
 
 - `Content-Type: application/json`;
 - an exact `Content-Length` from 1 through 65,536 bytes;
-- `X-Home-Context-Secret`, compared in constant time against a non-empty secret
-  injected through the receiver process environment;
+- `X-Home-Context-Secret`, compared in constant time against a high-entropy
+  secret of at least 32 bytes injected through the receiver process environment;
 - a complete snapshot whose `snapshot_at` is within 10 minutes of receiver time;
 - the existing exact 22-entity snapshot and per-entity field allowlists.
 
-The secret is never written to the replay database, JSONL, normalizer state, or
-logs, and responses never echo request values. Read timeout is five seconds.
+The owner must later generate the dedicated secret with a cryptographically
+secure random generator. The same value belongs only in Mac Keychain/injected
+process environment and HA `secrets.yaml`; it must never appear in a command
+argument, plist, repository file, chat, or log. Empty and shorter-than-32-byte
+values fail before the receiver binds. The secret is never written to the replay
+database, JSONL, normalizer state, or logs, and responses never echo request
+values. Read timeout is five seconds.
 Only one normalization transaction can run at a time; concurrent work receives
 503 backpressure. Exact-body SHA-256 replay protection returns a safe duplicate
 response after snapshot validation and skew enforcement. Fingerprints older
@@ -77,7 +82,29 @@ The review-only HA draft is
 22 approved entities with only `state`/`last_changed`/`last_reported`, uses
 `verify_ssl: true`, a five-second timeout, `!secret` for the dedicated receiver
 header, and `continue_on_error`. It triggers after the reviewed Observer or a
-feedback button event and contains no device action. Installing `rest_command`
+feedback button event and contains no device action.
+
+Observer-trigger coherence is fail closed. The draft records the
+`automation_triggered` event time and context ID, then waits at most ten seconds
+for all five Observer-written prediction helpers—mode, activity, confidence,
+summary, and next activity—to have `last_reported` at or after that event time
+and a state context ID equal to the captured Observer-run context. Only then may
+the common POST action run. Timeout writes a fixed warning and stops with an
+error before POST. The invariant assumes these five helpers are all written
+once, in sequence, by the reviewed Observer run and that HA propagates the
+automation-run context to each helper state write. Configuration validation and
+the first synthetic/live read-only proof must verify that context propagation;
+if it differs on the installed Core release, the draft fails closed and must be
+reviewed rather than weakened to timestamp-only evidence.
+
+Feedback-trigger exports wait one second for picker/counter settlement, then
+require the Observer automation's `current` attribute to be present and zero.
+If an Observer run is active or completion cannot be proved within ten seconds,
+the draft warns and stops without POST. Thus feedback can export the already
+complete current prediction plus its new press, but cannot knowingly sample a
+prediction mid-write.
+
+Installing `rest_command`
 requires configuration validation, a fresh backup, explicit owner approval,
 and an HA restart; this repository does none of those things.
 
@@ -85,7 +112,10 @@ The review-only receiver LaunchAgent is
 `launchd/xyz.buzz.home-context-receiver.plist.example`. Its first program
 argument is deliberately an owner-reviewed secret-injection wrapper placeholder;
 the secret must not be pasted into the plist. The review-only Tailscale commands
-are in `tailscale/serve.commands.example`. Do not enable Funnel.
+are in `tailscale/serve.commands.example`. They first capture the full existing
+Serve configuration, add only dedicated HTTPS port 8443 after conflict review,
+read it back, and remove only that port on rollback. Bare whole-device `serve
+reset`/`serve off` and Funnel are forbidden.
 
 ### Receiver responses
 
@@ -98,9 +128,12 @@ are in `tailscale/serve.commands.example`. Do not enable Funnel.
 
 ### Shutdown and crash runbook
 
-SIGTERM and Ctrl-C stop the HTTP loop, close the listener, and close the replay
-database. Stop the receiver before the collector during planned maintenance;
-HA remains unaffected because its draft action is `continue_on_error`.
+SIGTERM and Ctrl-C stop the HTTP loop and close the listener. Handler threads
+are non-daemon and `server_close()` waits for them; the five-second per-request
+timeout bounds that wait. Only after all handlers exit does the process close
+the replay database, preventing a connection-close race. Stop the receiver
+before the collector during planned maintenance; HA remains unaffected because
+its draft action is `continue_on_error`.
 
 There remains a narrow accepted Phase 3.3 crash window: JSONL is fsynced before
 normalizer state is saved. An identical retry is harmless because opaque event
@@ -360,17 +393,23 @@ real household state.
 
 1. Review and commit this implementation; run the full package tests on the Mac
    mini checkout.
-2. Obtain Randy's approval for a narrowly scoped, read-only HA event/export
-   credential. Build and separately review the normalizer; it may emit only the
-   documented JSONL fields and may not expose any service-call method.
+2. Obtain Randy's approval to generate a dedicated high-entropy receiver secret
+   of at least 32 bytes. Store it only in Mac Keychain/process injection and HA
+   `secrets.yaml`; never put it in a command argument, plist, repo, or log.
 3. Choose private local paths outside synced folders, create them mode `0700`,
    and validate a manual one-shot ingest plus report first. Configure retention
    greater than twice the report drift window (the 45/14-day defaults comply).
-4. Copy `launchd/xyz.buzz.home-context-analytics.plist.example` to
-   `~/Library/LaunchAgents/xyz.buzz.home-context-analytics.plist`, replace every
-   placeholder with an explicit local path, run `plutil -lint`, and only then
-   bootstrap it with `launchctl bootstrap gui/$(id -u) ...`.
-5. Verify that stopping the job changes no HA helper, observer, automation, or
+4. Capture `tailscale serve status --json`, review port 8443 for conflicts, add
+   only the dedicated 8443-to-127.0.0.1:8765 mapping, read it back, and prove
+   Funnel is off. Never use whole-device Serve reset/off commands.
+5. Copy `launchd/xyz.buzz.home-context-analytics.plist.example` and the receiver
+   template to `~/Library/LaunchAgents/`, replace every placeholder with an
+   explicit local path, run `plutil -lint`, and only then bootstrap them after
+   owner approval. The receiver plist must invoke an owner-reviewed wrapper that
+   injects the Keychain secret through the environment; it must not contain it.
+6. Validate HA configuration, take a fresh backup, and obtain explicit approval
+   for the restart required to install the draft `rest_command` and automation.
+7. Verify that stopping the job changes no HA helper, observer, automation, or
    device state. Verify the generated report against the counters shown in the
    Home Context dashboard.
 
@@ -394,3 +433,11 @@ Move the plist aside to prevent relaunch. Keep the SQLite file for review, or
 delete it only after Randy explicitly approves removal. The local database and
 reports contain no credentials, but they do contain private household-derived
 aggregates and must remain local.
+
+If the later receiver path is installed, disable the HA snapshot automation
+first, boot out only the receiver and collector LaunchAgents, then remove only
+the dedicated mapping with `tailscale serve --https=8443 off`. Capture
+`tailscale serve status --json` afterward and compare it to the saved pre-change
+configuration to prove unrelated mappings remain. Do not use `tailscale serve
+reset` or bare `tailscale serve off`. The inert HA `rest_command` can remain
+until an owner-approved maintenance restart removes it.
