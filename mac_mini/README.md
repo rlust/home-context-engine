@@ -98,6 +98,15 @@ preserve older, mixed state contexts while advancing `last_reported`, so helper
 context equality is deliberately not required. The captured event context is
 retained only for diagnostic trace review and never gates export.
 
+The non-overlap precondition is mandatory. The reviewed live Observer config
+hash `6b5fa7a109f6636a` uses `mode: restart`, which prevents parallel instances;
+`single` is also acceptable. The Observer must remain the sole writer of all
+five helpers and remain in a non-parallel `single`/`restart` mode. Changing it
+to `parallel` or any equivalent overlapping execution invalidates the coherence
+proof and requires review before export resumes. The YAML draft and
+`home_context_analytics/ha_export_contract.py` carry cross-references and a
+structural regression to keep their shared gate synchronized.
+
 Feedback-trigger exports wait one second for picker/counter settlement, then
 require the Observer automation's `current` attribute to be present and zero.
 If an Observer run is active or completion cannot be proved within ten seconds,
@@ -126,6 +135,7 @@ reset`/`serve off` and Funnel are forbidden.
 | 200 | `duplicate` | Exact replay or valid snapshot with no semantic transition |
 | 4xx | `rejected` | Fixed authentication/request/snapshot rejection; no values echoed |
 | 408/503 | `unavailable` | Read timeout or local single-writer backpressure |
+| 500 | `unavailable` | Fixed internal-error fallback; no exception or values logged/echoed |
 
 ### Shutdown and crash runbook
 

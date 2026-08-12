@@ -22,6 +22,7 @@ MAX_BODY_BYTES = 65_536
 MAX_SKEW_SECONDS = 600
 READ_TIMEOUT_SECONDS = 5
 MIN_SECRET_BYTES = 32
+INTERNAL_ERROR_RESPONSE = {"status": "unavailable", "reason": "internal_error"}
 
 
 class ReceiverError(ValueError):
@@ -99,16 +100,19 @@ class SnapshotReceiver:
         self._replay.close()
 
     def receive(self, *, supplied_secret: str | None, body: bytes) -> tuple[int, dict[str, Any]]:
-        if supplied_secret is None or not hmac.compare_digest(
-            supplied_secret.encode("utf-8"), self._secret
-        ):
-            return 401, {"status": "rejected", "reason": "authentication_failed"}
-        if not self._request_lock.acquire(blocking=False):
-            return 503, {"status": "unavailable", "reason": "backpressure"}
         try:
-            return self._receive_locked(body)
-        finally:
-            self._request_lock.release()
+            if supplied_secret is None or not hmac.compare_digest(
+                supplied_secret.encode("utf-8"), self._secret
+            ):
+                return 401, {"status": "rejected", "reason": "authentication_failed"}
+            if not self._request_lock.acquire(blocking=False):
+                return 503, {"status": "unavailable", "reason": "backpressure"}
+            try:
+                return self._receive_locked(body)
+            finally:
+                self._request_lock.release()
+        except Exception:
+            return 500, dict(INTERNAL_ERROR_RESPONSE)
 
     def _receive_locked(self, body: bytes) -> tuple[int, dict[str, Any]]:
         fingerprint = hashlib.sha256(body).hexdigest()
@@ -168,6 +172,12 @@ def make_handler(receiver: SnapshotReceiver) -> type[BaseHTTPRequestHandler]:
             self.connection.settimeout(READ_TIMEOUT_SECONDS)
 
         def do_POST(self) -> None:  # noqa: N802
+            try:
+                self._do_post()
+            except Exception:
+                self._respond(500, dict(INTERNAL_ERROR_RESPONSE))
+
+        def _do_post(self) -> None:
             if self.path != RECEIVER_PATH:
                 self._respond(404, {"status": "rejected", "reason": "not_found"})
                 return
@@ -221,11 +231,18 @@ def make_handler(receiver: SnapshotReceiver) -> type[BaseHTTPRequestHandler]:
     return Handler
 
 
+class PrivateThreadingHTTPServer(ThreadingHTTPServer):
+    """Threaded server whose last-resort handler never prints private tracebacks."""
+
+    def handle_error(self, _request: object, _client_address: object) -> None:
+        return
+
+
 def build_server(host: str, port: int, receiver: SnapshotReceiver) -> ThreadingHTTPServer:
     require_loopback_bind(host)
     if not 0 <= port <= 65535:
         raise ReceiverError("receiver port must be from 0 to 65535")
-    server = ThreadingHTTPServer((host, port), make_handler(receiver))
+    server = PrivateThreadingHTTPServer((host, port), make_handler(receiver))
     server.daemon_threads = False
     server.block_on_close = True
     return server

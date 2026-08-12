@@ -1,4 +1,9 @@
-"""Deterministic mirror of the review-only Home Assistant export gate."""
+"""Deterministic mirror of the review-only Home Assistant export gate.
+
+Keep this gate synchronized with the observer and feedback branches in
+``home_assistant/home_context_snapshot_push.yaml.example``. Structural tests
+verify the shared helper set, freshness comparison, and inactive-Observer rule.
+"""
 
 from __future__ import annotations
 
@@ -15,6 +20,9 @@ PREDICTION_HELPERS = (
     "input_text.home_context_summary",
     "input_text.home_next_likely_activity",
 )
+REVIEWED_OBSERVER_CONFIG_HASH = "6b5fa7a109f6636a"
+REVIEWED_OBSERVER_MODE = "restart"
+NON_OVERLAPPING_OBSERVER_MODES = frozenset({"single", "restart"})
 
 
 def export_ready(

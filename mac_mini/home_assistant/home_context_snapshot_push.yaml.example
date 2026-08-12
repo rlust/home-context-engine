@@ -44,6 +44,12 @@ rest_command:
       } | tojson }}
 
 automation:
+  # SYNC CONTRACT: Keep both coherence branches synchronized with
+  # home_context_analytics/ha_export_contract.py; structural tests enforce the
+  # exact five-helper freshness and Observer-inactive requirements.
+  # REVIEW PRECONDITION: Observer config hash 6b5fa7a109f6636a is mode restart.
+  # It must remain the sole writer and use non-parallel mode single/restart.
+  # Parallel or otherwise overlapping runs invalidate this gate and require review.
   - id: home_context_snapshot_push_draft
     alias: Home Context Snapshot Push (DRAFT)
     description: "Observe-only export after Observer runs or a feedback button changes. No device actions."

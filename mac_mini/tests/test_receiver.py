@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import ast
+import contextlib
 import http.client
+import io
 import json
 import plistlib
 import re
@@ -17,7 +19,13 @@ from unittest.mock import patch
 import mac_mini.home_context_analytics.receiver as receiver_module
 
 from mac_mini.home_context_analytics.collector import collect_continuous_file
-from mac_mini.home_context_analytics.ha_export_contract import PREDICTION_HELPERS, export_ready
+from mac_mini.home_context_analytics.ha_export_contract import (
+    NON_OVERLAPPING_OBSERVER_MODES,
+    PREDICTION_HELPERS,
+    REVIEWED_OBSERVER_CONFIG_HASH,
+    REVIEWED_OBSERVER_MODE,
+    export_ready,
+)
 from mac_mini.home_context_analytics.normalizer import REQUIRED_ENTITIES
 from mac_mini.home_context_analytics.receiver import (
     MAX_BODY_BYTES,
@@ -217,8 +225,12 @@ class ReceiverTests(unittest.TestCase):
             "Observer helper coherence proof did not complete; no snapshot was posted.",
             "Observer was active or its completion state was unavailable; no feedback snapshot was posted.",
             "state_attr('automation.home_context_evening_observer', 'current')",
+            "home_context_analytics/ha_export_contract.py",
+            f"Observer config hash {REVIEWED_OBSERVER_CONFIG_HASH}",
+            f"mode {REVIEWED_OBSERVER_MODE}",
         ):
             self.assertIn(required, draft)
+        self.assertIn(REVIEWED_OBSERVER_MODE, NON_OVERLAPPING_OBSERVER_MODES)
         for entity_id in PREDICTION_HELPERS:
             self.assertGreaterEqual(draft.count(f"states.{entity_id}.last_reported"), 3)
         self.assertNotIn(".context.id == observer_context_id", draft)
@@ -227,6 +239,72 @@ class ReceiverTests(unittest.TestCase):
         )
         for forbidden in ("light.turn_on", "lock.unlock", "ai_actions_enabled.turn_on"):
             self.assertNotIn(forbidden, draft)
+
+    def test_ha_draft_observer_gate_structurally_matches_python_mirror(self) -> None:
+        draft = (
+            ROOT / "mac_mini" / "home_assistant" / "home_context_snapshot_push.yaml.example"
+        ).read_text(encoding="utf-8")
+        observer_branch = draft.split(
+            '- conditions: "{{ trigger.id == \'observer\' }}"', 1
+        )[1].split('- conditions: "{{ trigger.id == \'feedback\' }}"', 1)[0]
+        gate_expressions = re.findall(
+            r"(?:wait_template|value_template): >-\n\s+\{\{\n(.*?)\n\s+\}\}",
+            observer_branch,
+            re.DOTALL,
+        )
+        self.assertEqual(len(gate_expressions), 2)
+        helper_pattern = re.compile(
+            r"states\.([a-z0-9_]+\.[a-z0-9_]+)\.last_reported"
+            r"\s*>=\s*as_datetime\(observer_event_time\)"
+        )
+        for expression in gate_expressions:
+            self.assertEqual(tuple(helper_pattern.findall(expression)), PREDICTION_HELPERS)
+            self.assertEqual(
+                expression.count(
+                    "state_attr('automation.home_context_evening_observer', 'current') is not none"
+                ),
+                1,
+            )
+            self.assertEqual(
+                expression.count(
+                    "state_attr('automation.home_context_evening_observer', 'current') | int == 0"
+                ),
+                1,
+            )
+
+    def test_unexpected_exception_is_value_free_and_server_remains_operable(self) -> None:
+        private_marker = "SYNTHETIC_PRIVATE_MARKER_DO_NOT_LOG"
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            harness = ReceiverHarness(Path(temporary_directory))
+            original = harness.receiver._receive_locked
+            calls = 0
+
+            def fail_once(body: bytes):
+                nonlocal calls
+                calls += 1
+                if calls == 1:
+                    raise RuntimeError(private_marker)
+                return original(body)
+
+            harness.receiver._receive_locked = fail_once
+            captured_stderr = io.StringIO()
+            try:
+                with contextlib.redirect_stderr(captured_stderr):
+                    failure_status, failure = harness.request(body=snapshot_bytes())
+                    success_status, success = harness.request(body=snapshot_bytes())
+                    try:
+                        raise RuntimeError(private_marker)
+                    except RuntimeError:
+                        harness.server.handle_error(object(), ("127.0.0.1", 0))
+            finally:
+                harness.close()
+
+        self.assertEqual(failure_status, 500)
+        self.assertEqual(failure, {"status": "unavailable", "reason": "internal_error"})
+        self.assertEqual(success_status, 202)
+        self.assertEqual(success["status"], "accepted")
+        self.assertNotIn(private_marker, json.dumps(failure))
+        self.assertNotIn(private_marker, captured_stderr.getvalue())
 
     def test_launch_and_serve_templates_keep_receiver_private(self) -> None:
         plist_path = (
