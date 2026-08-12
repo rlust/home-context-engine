@@ -32,6 +32,8 @@ class ModelTests(unittest.TestCase):
                 "tv_active": "inactive",
             },
             "observer_version": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "context_flags": [],
+            "next_activity": None,
         }
 
     def test_normalizes_timestamp_and_rooms(self) -> None:

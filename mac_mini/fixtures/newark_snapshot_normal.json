@@ -1,0 +1,32 @@
+{
+  "snapshot_at": "2026-08-12T18:00:00Z",
+  "observer_config": {
+    "automation_id": "automation.home_context_evening_observer",
+    "config_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "version": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+  },
+  "entities": {
+    "input_select.home_context_mode": {"state": "Active", "last_changed": "2026-08-12T17:59:00Z"},
+    "input_select.home_current_activity": {"state": "Working", "last_changed": "2026-08-12T17:59:00Z"},
+    "input_number.home_context_confidence": {"state": "88.0", "last_changed": "2026-08-12T17:59:00Z"},
+    "sensor.home_active_room": {"state": "Family Room, Office", "last_changed": "2026-08-12T17:59:00Z"},
+    "input_text.home_context_summary": {"state": "Media inactive", "last_changed": "2026-08-12T17:59:00Z"},
+    "input_text.home_next_likely_activity": {"state": "Cooking", "last_changed": "2026-08-12T17:59:00Z"},
+    "input_boolean.ai_actions_enabled": {"state": "off", "last_changed": "2026-08-12T17:59:00Z"},
+    "sensor.home_context_observer_age": {"state": "1", "last_changed": "2026-08-12T17:59:00Z"},
+    "binary_sensor.home_context_engine_stalled": {"state": "off", "last_changed": "2026-08-12T17:59:00Z"},
+    "binary_sensor.residents_home": {"state": "on", "last_changed": "2026-08-12T17:59:00Z"},
+    "binary_sensor.home_room_presence": {"state": "on", "last_changed": "2026-08-12T17:59:00Z"},
+    "binary_sensor.tv_active": {"state": "off", "last_changed": "2026-08-12T17:59:00Z"},
+    "binary_sensor.music_playing": {"state": "off", "last_changed": "2026-08-12T17:59:00Z"},
+    "binary_sensor.exterior_door_open": {"state": "off", "last_changed": "2026-08-12T17:59:00Z"},
+    "binary_sensor.recent_arrival": {"state": "off", "last_changed": "2026-08-12T17:59:00Z"},
+    "input_button.home_context_confirm": {"state": "2026-08-12T17:00:00Z", "last_changed": "2026-08-12T17:00:00Z"},
+    "input_button.home_context_mark_wrong": {"state": "2026-08-12T17:00:00Z", "last_changed": "2026-08-12T17:00:00Z"},
+    "input_button.home_context_mark_unsure": {"state": "2026-08-12T17:00:00Z", "last_changed": "2026-08-12T17:00:00Z"},
+    "input_select.home_context_corrected_activity": {"state": "Cooking", "last_changed": "2026-08-12T17:00:00Z"},
+    "counter.home_context_confirmations": {"state": "0", "last_changed": "2026-08-12T17:00:00Z"},
+    "counter.home_context_corrections": {"state": "0", "last_changed": "2026-08-12T17:00:00Z"},
+    "counter.home_context_unsure": {"state": "0", "last_changed": "2026-08-12T17:00:00Z"}
+  }
+}

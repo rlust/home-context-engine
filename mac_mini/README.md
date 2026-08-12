@@ -7,6 +7,18 @@ reports for human review or Hermes. It has no Home Assistant client, no network
 client, and no device/service-call path. It requires Python 3.10 or newer and
 uses only the Python standard library.
 
+Phase 3.3 adds a **transport-neutral snapshot normalizer**. It accepts one
+complete JSON object supplied by a separate future transport, converts only the
+approved Newark states into the Phase 3.2 JSONL contract, and true-appends the
+records locally. It contains no HA URL/token, REST/WebSocket/MCP client,
+subprocess fetch, network import, or service-call capability.
+
+The unresolved next decision is the read-only snapshot transport: a later,
+separately reviewed component must obtain these exact entities from Newark and
+write the complete local snapshot file. This phase does not choose REST versus
+WebSocket/MCP, create a credential, or authorize a connection. Building that
+transport and deploying it are separate approval gates.
+
 ## Safety boundary
 
 - Home Assistant remains the real-time observer and controller.
@@ -40,6 +52,86 @@ and access authorization. An adapter must map only these live helpers:
 | next prediction | `input_text.home_next_likely_activity` (future aggregate only; not stored in v1) |
 | feedback | Confirm / Mark Wrong / Unsure buttons and corrected-activity selector |
 | outcome audit | confirmation / correction / unsure counters and last-feedback helper |
+
+## Phase 3.3 snapshot contract
+
+The top level is exactly `snapshot_at`, `observer_config`, and `entities`.
+`observer_config` is exactly the reviewed Observer automation ID plus lowercase
+SHA-256 `config_sha256` and `version`; its canonical object becomes the opaque
+`observer_version` digest. Each entity is exactly `state` and `last_changed`.
+Unknown entities, missing required entities, attributes, service/event fields,
+transport configuration, and other extras are rejected.
+
+The exact entity allowlist is:
+
+```text
+input_select.home_context_mode
+input_select.home_current_activity
+input_number.home_context_confidence
+sensor.home_active_room
+input_text.home_context_summary
+input_text.home_next_likely_activity
+input_boolean.ai_actions_enabled
+sensor.home_context_observer_age
+binary_sensor.home_context_engine_stalled
+binary_sensor.residents_home
+binary_sensor.home_room_presence
+binary_sensor.tv_active
+binary_sensor.music_playing
+binary_sensor.exterior_door_open
+binary_sensor.recent_arrival
+input_button.home_context_confirm
+input_button.home_context_mark_wrong
+input_button.home_context_mark_unsure
+input_select.home_context_corrected_activity
+counter.home_context_confirmations
+counter.home_context_corrections
+counter.home_context_unsure
+```
+
+The seven normalized signals are exterior door, music, Observer health, recent
+arrival, resident presence, room presence, and TV. Binary entity states become
+`active`/`inactive`; `unknown`/`unavailable` become `missing`; an age greater
+than the per-signal threshold becomes `stale` (the exact threshold remains
+fresh). Observer stalled maps to missing evidence, and Observer age over ten
+minutes maps to stale. Residents are emitted only as `none` or `unknown`—never
+as an identity or person count guessed from a household-wide binary sensor.
+
+Raw summary text is never emitted. It is reduced to a fixed set of approved
+concept flags (`conflict`, `door`, `media`, `missing`, `recent arrival`, or
+`stale`). Next activity is emitted only when it exactly matches the approved
+activity vocabulary; otherwise it becomes null. The normalizer also refuses to
+operate unless the supplied `ai_actions_enabled` state is OFF.
+
+### Episode and feedback boundaries
+
+A prediction episode changes only when semantic context changes: mode, activity,
+five-point confidence band, active rooms, anonymous resident bucket, one of the
+seven signal-health states, approved context flags, next activity, or Observer
+version. A timestamp-only five-minute Observer refresh emits nothing. IDs are
+deterministic SHA-256 digests with separate episode/prediction/feedback
+namespaces, making replay stable without embedding household-readable values.
+
+Button `last_changed` timestamps—not counters—are feedback-event cursors. The
+first snapshot establishes a baseline. A later Confirm/Wrong/Unsure timestamp
+emits feedback against the episode visible before that snapshot; a new timestamp
+therefore preserves revisions. Counters only check that audit deltas exactly
+match the newly observed button timestamps; jumps, resets, or unexplained
+increments mark the audit inconsistent but never create feedback events.
+
+### True append and crash behavior
+
+`normalize-snapshot` accepts a local snapshot file and uses `O_APPEND`; it
+refuses `atomic-replace`, symlinks/special files, an incomplete existing final
+line, or using the same file for normalizer state and JSONL output. Output is
+fsynced before the separate normalizer state advances. A crash after append but
+before state advance may replay an identical line, which the downstream
+event-ID idempotency safely deduplicates. The persistent collector processes
+only complete newline-terminated lines and does not replace the output file.
+
+Distinct quarantine rows are capped at 1,000 by default. Old fingerprints are
+pruned deterministically while cumulative pruned distinct and occurrence totals
+remain in metadata and the report; raw rejected content is never retained.
 
 ## Normalized JSONL contract
 
@@ -95,6 +187,18 @@ From the repository root:
 python3 -m unittest discover -s mac_mini/tests -v
 
 pilot_dir="$(mktemp -d)"
+python3 -m mac_mini.home_context_analytics.cli normalize-snapshot \
+  --input mac_mini/fixtures/newark_snapshot_normal.json \
+  --state-database "$pilot_dir/normalizer.sqlite3" \
+  --output "$pilot_dir/normalized.jsonl"
+
+python3 -m mac_mini.home_context_analytics.cli ingest-continuous \
+  --input "$pilot_dir/normalized.jsonl" \
+  --database "$pilot_dir/episodes.sqlite3" \
+  --retention-days 45 \
+  --drift-window-days 14 \
+  --as-of 2026-08-12T18:00:00Z
+
 python3 -m mac_mini.home_context_analytics.cli ingest \
   --input mac_mini/fixtures/synthetic_events.jsonl \
   --database "$pilot_dir/episodes.sqlite3" \
@@ -131,6 +235,12 @@ exact target activity, target-branch precision of at least 90%, confidence
 calibration error within 10 percentage points, zero eligibility when required
 signals are stale/missing, and a separately demonstrated circuit breaker and
 manual override. This package cannot enable or perform an action.
+
+Synthetic coverage builds variants from
+`fixtures/newark_snapshot_normal.json` for multi-room, unknown/unavailable,
+stale-at-boundary, Observer-stalled, revised feedback, meaningful transition,
+unchanged refresh, and privacy/allowlist rejection cases. Fixtures contain no
+real household state.
 
 ## Reviewed launch path (not deployed)
 

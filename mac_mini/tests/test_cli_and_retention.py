@@ -24,7 +24,9 @@ class CliAndRetentionTests(unittest.TestCase):
     def test_cli_exposes_only_local_ingest_and_report_commands(self) -> None:
         parser = build_parser()
         choices = next(action for action in parser._actions if action.dest == "command").choices
-        self.assertEqual(set(choices), {"ingest", "ingest-continuous", "report"})
+        self.assertEqual(
+            set(choices), {"ingest", "ingest-continuous", "normalize-snapshot", "report"}
+        )
         args = parser.parse_args(["ingest", "--input", "events.jsonl", "--database", "pilot.sqlite3"])
         self.assertEqual(args.retention_days, 45)
         self.assertEqual(args.drift_window_days, 14)
@@ -175,7 +177,15 @@ class CliAndRetentionTests(unittest.TestCase):
             self.assertEqual(report["episodes"], 2)
             self.assertEqual(
                 report["rejected_records"],
-                {"scope": "database_lifetime", "distinct": 1, "occurrences": 2},
+                {
+                    "scope": "database_lifetime",
+                    "active_distinct": 1,
+                    "pruned_distinct": 0,
+                    "total_distinct": 1,
+                    "active_occurrences": 2,
+                    "pruned_occurrences": 0,
+                    "total_occurrences": 2,
+                },
             )
             self.assertNotIn(bad.encode("utf-8"), database.read_bytes())
 
@@ -202,6 +212,29 @@ class CliAndRetentionTests(unittest.TestCase):
                 as_of=datetime(2026, 8, 12, 18, tzinfo=timezone.utc),
             )
             self.assertEqual(second["episodes_inserted"], 1)
+
+    def test_quarantine_pruning_preserves_lifetime_totals(self) -> None:
+        bad_one = json.dumps({"kind": "service_call", "service": "light.turn_on"})
+        bad_two = json.dumps({"kind": "service_call", "service": "lock.unlock"})
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            input_path = root / "events.jsonl"
+            database = root / "episodes.sqlite3"
+            input_path.write_text(bad_one + "\n" + bad_two + "\n", encoding="utf-8")
+            counts = collect_continuous_file(
+                input_path,
+                database,
+                max_quarantine_distinct=1,
+                as_of=datetime(2026, 8, 12, 18, tzinfo=timezone.utc),
+            )
+            self.assertEqual(counts["quarantine_pruned"], 1)
+            report = build_report(
+                database, as_of=datetime(2026, 8, 12, 18, tzinfo=timezone.utc)
+            )
+            self.assertEqual(report["rejected_records"]["active_distinct"], 1)
+            self.assertEqual(report["rejected_records"]["pruned_distinct"], 1)
+            self.assertEqual(report["rejected_records"]["total_distinct"], 2)
+            self.assertEqual(report["rejected_records"]["total_occurrences"], 2)
 
     def test_schema_one_feedback_migrates_to_append_only_events(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -243,7 +276,7 @@ class CliAndRetentionTests(unittest.TestCase):
                 legacy_table = store.connection.execute(
                     "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'feedback'"
                 ).fetchone()
-            self.assertEqual(version, "2")
+            self.assertEqual(version, "3")
             self.assertEqual(migrated, "confirm")
             self.assertIsNone(legacy_table)
 

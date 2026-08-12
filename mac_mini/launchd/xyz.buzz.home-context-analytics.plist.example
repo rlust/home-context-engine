@@ -18,6 +18,8 @@
     <string>45</string>
     <string>--drift-window-days</string>
     <string>14</string>
+    <string>--max-quarantine-distinct</string>
+    <string>1000</string>
   </array>
   <key>WorkingDirectory</key>
   <string>REPLACE_WITH_REPOSITORY_WORKTREE</string>

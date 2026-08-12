@@ -38,6 +38,9 @@ def build_report(database: Path, *, as_of: datetime, window_days: int = 14) -> d
         raise ValueError("as_of must include a timezone")
     as_of_utc = as_of.astimezone(timezone.utc)
     with read_only_connection(database) as connection:
+        schema_row = connection.execute(
+            "SELECT value FROM metadata WHERE key = 'schema_version'"
+        ).fetchone()
         retention_row = connection.execute(
             "SELECT value FROM metadata WHERE key = 'retention_days'"
         ).fetchone()
@@ -82,6 +85,12 @@ def build_report(database: Path, *, as_of: datetime, window_days: int = 14) -> d
         rejected = connection.execute(
             "SELECT COUNT(*) AS distinct_count, COALESCE(SUM(occurrences), 0) AS occurrences FROM rejected_records"
         ).fetchone()
+        pruned_values = {
+            row["key"]: int(row["value"])
+            for row in connection.execute(
+                "SELECT key, value FROM metadata WHERE key IN ('rejected_pruned_distinct', 'rejected_pruned_occurrences')"
+            )
+        }
 
     records = [row for row in records if row["occurred_at"] <= as_of_utc]
     for row in records:
@@ -157,7 +166,7 @@ def build_report(database: Path, *, as_of: datetime, window_days: int = 14) -> d
         signal_delta = round(current["signal_issue_rate"] - previous["signal_issue_rate"], 4)
 
     return {
-        "schema_version": 2,
+        "schema_version": int(schema_row["value"]),
         "as_of": as_of_utc.isoformat().replace("+00:00", "Z"),
         "scope": "Newark Home Context local anonymous aggregates",
         "retention_days": retention_days,
@@ -178,8 +187,12 @@ def build_report(database: Path, *, as_of: datetime, window_days: int = 14) -> d
         "expected_calibration_error": ece,
         "rejected_records": {
             "scope": "database_lifetime",
-            "distinct": rejected["distinct_count"],
-            "occurrences": rejected["occurrences"],
+            "active_distinct": rejected["distinct_count"],
+            "pruned_distinct": pruned_values.get("rejected_pruned_distinct", 0),
+            "total_distinct": rejected["distinct_count"] + pruned_values.get("rejected_pruned_distinct", 0),
+            "active_occurrences": rejected["occurrences"],
+            "pruned_occurrences": pruned_values.get("rejected_pruned_occurrences", 0),
+            "total_occurrences": rejected["occurrences"] + pruned_values.get("rejected_pruned_occurrences", 0),
         },
         "signal_health": {
             "episodes_with_stale_or_missing": episodes_with_signal_issues,
@@ -227,7 +240,7 @@ def report_markdown(report: dict[str, Any]) -> str:
         f"- Unreviewed: {report['unreviewed']}",
         f"- Confirmed / Wrong / Unsure: {feedback['confirmed']} / {feedback['wrong']} / {feedback['unsure']}",
         f"- Scored accuracy (Unsure excluded): {feedback['scored_accuracy']}",
-        f"- Rejected records (distinct / occurrences): {report['rejected_records']['distinct']} / {report['rejected_records']['occurrences']}",
+        f"- Rejected records (lifetime distinct / occurrences): {report['rejected_records']['total_distinct']} / {report['rejected_records']['total_occurrences']}",
         "",
         "## Signal health",
         "",

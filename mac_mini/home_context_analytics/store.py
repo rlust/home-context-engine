@@ -13,7 +13,7 @@ from typing import Iterator
 from .model import Episode, Feedback
 
 
-SCHEMA_VERSION = "2"
+SCHEMA_VERSION = "3"
 
 
 def _open_writable(path: Path) -> sqlite3.Connection:
@@ -36,7 +36,9 @@ def _open_writable(path: Path) -> sqlite3.Connection:
             active_rooms_json TEXT NOT NULL,
             resident_bucket TEXT NOT NULL,
             signals_json TEXT NOT NULL,
-            observer_version TEXT NOT NULL
+            observer_version TEXT NOT NULL,
+            context_flags_json TEXT NOT NULL DEFAULT '[]',
+            next_activity TEXT
         );
         CREATE TABLE IF NOT EXISTS feedback_events (
             source_event_id TEXT PRIMARY KEY,
@@ -89,6 +91,18 @@ def _open_writable(path: Path) -> sqlite3.Connection:
                 """
             )
             connection.execute("DROP TABLE feedback")
+        connection.execute("UPDATE metadata SET value = '2' WHERE key = 'schema_version'")
+        version = "2"
+    if version == "2":
+        columns = {
+            row[1] for row in connection.execute("PRAGMA table_info(episodes)").fetchall()
+        }
+        if "context_flags_json" not in columns:
+            connection.execute(
+                "ALTER TABLE episodes ADD COLUMN context_flags_json TEXT NOT NULL DEFAULT '[]'"
+            )
+        if "next_activity" not in columns:
+            connection.execute("ALTER TABLE episodes ADD COLUMN next_activity TEXT")
         connection.execute(
             "UPDATE metadata SET value = ? WHERE key = 'schema_version'", (SCHEMA_VERSION,)
         )
@@ -140,14 +154,17 @@ class LocalStore:
             episode.resident_bucket,
             json.dumps(dict(episode.signals), sort_keys=True, separators=(",", ":")),
             episode.observer_version,
+            json.dumps(episode.context_flags, separators=(",", ":")),
+            episode.next_activity,
         )
         try:
             self.connection.execute(
                 """
                 INSERT INTO episodes(
                     episode_id, source_event_id, occurred_at, mode, activity, confidence,
-                    active_rooms_json, resident_bucket, signals_json, observer_version
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    active_rooms_json, resident_bucket, signals_json, observer_version,
+                    context_flags_json, next_activity
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 values,
             )
@@ -156,7 +173,8 @@ class LocalStore:
             existing = self.connection.execute(
                 """
                 SELECT episode_id, source_event_id, occurred_at, mode, activity, confidence,
-                       active_rooms_json, resident_bucket, signals_json, observer_version
+                       active_rooms_json, resident_bucket, signals_json, observer_version,
+                       context_flags_json, next_activity
                 FROM episodes WHERE episode_id = ? OR source_event_id = ?
                 """,
                 (episode.episode_id, episode.source_event_id),
@@ -265,6 +283,42 @@ class LocalStore:
                 ("drift_window_days", str(drift_window_days)),
             ),
         )
+
+    def prune_rejections(self, max_distinct: int) -> int:
+        if max_distinct < 1:
+            raise ValueError("max_distinct quarantine records must be at least 1")
+        overflow = self.connection.execute(
+            "SELECT MAX(COUNT(*) - ?, 0) FROM rejected_records", (max_distinct,)
+        ).fetchone()[0]
+        if not overflow:
+            return 0
+        rows = self.connection.execute(
+            """
+            SELECT source_id, fingerprint, occurrences
+            FROM rejected_records
+            ORDER BY julianday(last_seen_at), source_id, fingerprint
+            LIMIT ?
+            """,
+            (overflow,),
+        ).fetchall()
+        pruned_occurrences = sum(row[2] for row in rows)
+        self.connection.executemany(
+            "DELETE FROM rejected_records WHERE source_id = ? AND fingerprint = ?",
+            ((row[0], row[1]) for row in rows),
+        )
+        for key, amount in (
+            ("rejected_pruned_distinct", len(rows)),
+            ("rejected_pruned_occurrences", pruned_occurrences),
+        ):
+            self.connection.execute(
+                """
+                INSERT INTO metadata(key, value) VALUES (?, ?)
+                ON CONFLICT(key) DO UPDATE SET
+                    value = CAST(CAST(metadata.value AS INTEGER) + CAST(excluded.value AS INTEGER) AS TEXT)
+                """,
+                (key, str(amount)),
+            )
+        return len(rows)
 
     def purge(self, retention_days: int, as_of: datetime) -> int:
         if retention_days < 1:

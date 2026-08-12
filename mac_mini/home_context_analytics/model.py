@@ -69,6 +69,16 @@ SIGNALS = frozenset(
 SIGNAL_STATES = frozenset({"active", "inactive", "stale", "missing"})
 RESIDENT_BUCKETS = frozenset({"none", "one", "multiple", "unknown"})
 FEEDBACK_OUTCOMES = frozenset({"confirm", "wrong", "unsure"})
+CONTEXT_FLAGS = frozenset(
+    {
+        "summary_conflict",
+        "summary_door",
+        "summary_media",
+        "summary_missing",
+        "summary_recent_arrival",
+        "summary_stale",
+    }
+)
 
 _EPISODE_KEYS = frozenset(
     {
@@ -83,6 +93,8 @@ _EPISODE_KEYS = frozenset(
         "resident_bucket",
         "signals",
         "observer_version",
+        "context_flags",
+        "next_activity",
     }
 )
 
@@ -211,6 +223,8 @@ class Episode:
     resident_bucket: str
     signals: tuple[tuple[str, str], ...]
     observer_version: str
+    context_flags: tuple[str, ...]
+    next_activity: str | None
 
     @classmethod
     def from_payload(cls, payload: Mapping[str, Any]) -> "Episode":
@@ -256,6 +270,16 @@ class Episode:
         if invalid_states:
             raise ValidationError("signal states must be active, inactive, stale, or missing")
 
+        raw_flags = payload.get("context_flags")
+        if not isinstance(raw_flags, list) or not all(isinstance(flag, str) for flag in raw_flags):
+            raise ValidationError("context_flags must be a list of approved strings")
+        unknown_flags = set(raw_flags) - CONTEXT_FLAGS
+        if unknown_flags:
+            raise ValidationError(f"context flags are not approved: {', '.join(sorted(unknown_flags))}")
+        next_activity = payload.get("next_activity")
+        if next_activity is not None and next_activity not in ACTIVITIES:
+            raise ValidationError("next_activity must be null or a whitelisted activity")
+
         return cls(
             source_event_id=_require_identifier(payload.get("source_event_id"), "source_event_id"),
             episode_id=_require_identifier(payload.get("episode_id"), "episode_id"),
@@ -267,6 +291,8 @@ class Episode:
             resident_bucket=resident_bucket,
             signals=tuple(sorted((str(name), str(state)) for name, state in raw_signals.items())),
             observer_version=_require_identifier(payload.get("observer_version"), "observer_version"),
+            context_flags=tuple(sorted(set(raw_flags))),
+            next_activity=next_activity,
         )
 
 

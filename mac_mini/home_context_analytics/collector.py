@@ -73,6 +73,7 @@ def collect_continuous_file(
     *,
     retention_days: int = 45,
     drift_window_days: int = 14,
+    max_quarantine_distinct: int = 1000,
     as_of: datetime | None = None,
 ) -> dict[str, int]:
     """Ingest only newly appended lines, isolating and deduplicating failures."""
@@ -90,6 +91,7 @@ def collect_continuous_file(
         "duplicates": 0,
         "rejected_records": 0,
         "quarantined_distinct": 0,
+        "quarantine_pruned": 0,
         "purged": 0,
     }
     seen_at = reference_time.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
@@ -152,5 +154,6 @@ def collect_continuous_file(
                 )
                 store.commit()
         counts["purged"] = store.purge(retention_days, reference_time)
+        counts["quarantine_pruned"] = store.prune_rejections(max_quarantine_distinct)
         store.commit()
     return counts

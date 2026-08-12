@@ -12,6 +12,7 @@ from pathlib import Path
 
 from .collector import collect_continuous_file, collect_jsonl
 from .model import ValidationError, parse_timestamp
+from .normalizer import NormalizerState, SnapshotError, normalize_and_append
 from .report import build_report, report_json, report_markdown
 
 
@@ -41,7 +42,16 @@ def build_parser() -> argparse.ArgumentParser:
     continuous.add_argument("--database", required=True, type=Path)
     continuous.add_argument("--retention-days", type=int, default=45)
     continuous.add_argument("--drift-window-days", type=int, default=14)
+    continuous.add_argument("--max-quarantine-distinct", type=int, default=1000)
     continuous.add_argument("--as-of", type=_datetime, default=None)
+
+    normalize = commands.add_parser(
+        "normalize-snapshot", help="normalize one supplied Newark snapshot and append JSONL"
+    )
+    normalize.add_argument("--input", required=True, type=Path)
+    normalize.add_argument("--state-database", required=True, type=Path)
+    normalize.add_argument("--output", required=True, type=Path)
+    normalize.add_argument("--output-mode", choices=("append", "atomic-replace"), default="append")
 
     report = commands.add_parser("report", help="produce deterministic local aggregates")
     report.add_argument("--database", required=True, type=Path)
@@ -99,9 +109,23 @@ def main(argv: list[str] | None = None) -> int:
                 args.database,
                 retention_days=args.retention_days,
                 drift_window_days=args.drift_window_days,
+                max_quarantine_distinct=args.max_quarantine_distinct,
                 as_of=args.as_of,
             )
             sys.stdout.write(json.dumps(counts, sort_keys=True) + "\n")
+            return 0
+
+        if args.command == "normalize-snapshot":
+            with args.input.open("r", encoding="utf-8") as stream:
+                snapshot = json.load(stream)
+            with NormalizerState(args.state_database) as state:
+                result = normalize_and_append(
+                    snapshot,
+                    state,
+                    args.output,
+                    output_mode=args.output_mode,
+                )
+            sys.stdout.write(json.dumps(result, sort_keys=True) + "\n")
             return 0
 
         report = build_report(args.database, as_of=args.as_of, window_days=args.window_days)
@@ -111,7 +135,7 @@ def main(argv: list[str] | None = None) -> int:
         else:
             sys.stdout.write(content)
         return 0
-    except (FileNotFoundError, OSError, RuntimeError, ValidationError, ValueError) as exc:
+    except (FileNotFoundError, json.JSONDecodeError, OSError, RuntimeError, SnapshotError, ValidationError, ValueError) as exc:
         sys.stderr.write(f"error: {exc}\n")
         return 2
 
