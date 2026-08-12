@@ -10,7 +10,7 @@ import tempfile
 from datetime import datetime
 from pathlib import Path
 
-from .collector import collect_jsonl
+from .collector import collect_continuous_file, collect_jsonl
 from .model import ValidationError, parse_timestamp
 from .report import build_report, report_json, report_markdown
 
@@ -30,8 +30,18 @@ def build_parser() -> argparse.ArgumentParser:
     ingest = commands.add_parser("ingest", help="ingest a local normalized JSONL file")
     ingest.add_argument("--input", required=True, help="JSONL path, or - for stdin")
     ingest.add_argument("--database", required=True, type=Path)
-    ingest.add_argument("--retention-days", type=int, default=30)
+    ingest.add_argument("--retention-days", type=int, default=45)
+    ingest.add_argument("--drift-window-days", type=int, default=14)
     ingest.add_argument("--as-of", type=_datetime, default=None)
+
+    continuous = commands.add_parser(
+        "ingest-continuous", help="checkpointed append-only ingest with fault isolation"
+    )
+    continuous.add_argument("--input", required=True, type=Path)
+    continuous.add_argument("--database", required=True, type=Path)
+    continuous.add_argument("--retention-days", type=int, default=45)
+    continuous.add_argument("--drift-window-days", type=int, default=14)
+    continuous.add_argument("--as-of", type=_datetime, default=None)
 
     report = commands.add_parser("report", help="produce deterministic local aggregates")
     report.add_argument("--database", required=True, type=Path)
@@ -68,6 +78,7 @@ def main(argv: list[str] | None = None) -> int:
                     sys.stdin,
                     args.database,
                     retention_days=args.retention_days,
+                    drift_window_days=args.drift_window_days,
                     as_of=args.as_of,
                 )
             else:
@@ -76,8 +87,20 @@ def main(argv: list[str] | None = None) -> int:
                         stream,
                         args.database,
                         retention_days=args.retention_days,
+                        drift_window_days=args.drift_window_days,
                         as_of=args.as_of,
                     )
+            sys.stdout.write(json.dumps(counts, sort_keys=True) + "\n")
+            return 0
+
+        if args.command == "ingest-continuous":
+            counts = collect_continuous_file(
+                args.input,
+                args.database,
+                retention_days=args.retention_days,
+                drift_window_days=args.drift_window_days,
+                as_of=args.as_of,
+            )
             sys.stdout.write(json.dumps(counts, sort_keys=True) + "\n")
             return 0
 

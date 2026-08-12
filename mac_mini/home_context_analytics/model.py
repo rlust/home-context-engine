@@ -4,7 +4,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from decimal import Decimal, InvalidOperation
+import re
 from typing import Any, Mapping
+from uuid import UUID
 
 
 MODES = frozenset(
@@ -125,12 +128,61 @@ def parse_timestamp(value: Any, field: str = "occurred_at") -> str:
     return parsed.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
+_DIGEST_PATTERN = re.compile(r"[0-9a-f]{32}(?:[0-9a-f]{32})?")
+
+
 def _require_identifier(value: Any, field: str) -> str:
     if not isinstance(value, str) or not value or len(value) > 128:
         raise ValidationError(f"{field} must be a non-empty string up to 128 characters")
-    if any(character.isspace() for character in value):
-        raise ValidationError(f"{field} must not contain whitespace")
-    return value
+    lowered = value.lower()
+    if _DIGEST_PATTERN.fullmatch(lowered):
+        return lowered
+    try:
+        parsed = UUID(value)
+    except ValueError as exc:
+        raise ValidationError(f"{field} must be an opaque UUID or 32/64-character hex digest") from exc
+    if str(parsed) != lowered:
+        raise ValidationError(f"{field} UUID must use canonical hyphenated form")
+    return lowered
+
+
+def normalize_ha_confidence(value: Any) -> int:
+    """Parse an HA decimal string exactly; fractional confidence is invalid."""
+
+    if not isinstance(value, str):
+        raise ValidationError("HA confidence must be a decimal string")
+    if re.fullmatch(r"\d+(?:\.\d+)?", value) is None:
+        raise ValidationError("HA confidence must use plain unsigned decimal notation")
+    try:
+        parsed = Decimal(value)
+    except InvalidOperation as exc:
+        raise ValidationError("HA confidence must be a finite decimal string") from exc
+    if not parsed.is_finite() or parsed != parsed.to_integral_value():
+        raise ValidationError("HA confidence must be integral; rounding is forbidden")
+    confidence = int(parsed)
+    if not 0 <= confidence <= 100:
+        raise ValidationError("HA confidence must be from 0 to 100")
+    return confidence
+
+
+def normalize_ha_active_rooms(value: Any) -> tuple[tuple[str, ...], str]:
+    """Normalize Newark's comma-separated multi-room sensor state.
+
+    Returns rooms and the aggregate room-presence evidence state.
+    """
+
+    if not isinstance(value, str):
+        raise ValidationError("HA active-room state must be a string")
+    normalized = value.strip()
+    if normalized.lower() in {"unknown", "unavailable"}:
+        return (), "missing"
+    if normalized.lower() in {"none", ""}:
+        return (), "inactive"
+    rooms = tuple(sorted({room.strip() for room in normalized.split(",") if room.strip()}))
+    unknown_rooms = set(rooms) - ROOMS
+    if unknown_rooms:
+        raise ValidationError(f"rooms are not whitelisted: {', '.join(sorted(unknown_rooms))}")
+    return rooms, "active"
 
 
 def _reject_sensitive_keys(payload: Mapping[str, Any]) -> None:
@@ -204,10 +256,6 @@ class Episode:
         if invalid_states:
             raise ValidationError("signal states must be active, inactive, stale, or missing")
 
-        observer_version = payload.get("observer_version")
-        if not isinstance(observer_version, str) or not observer_version or len(observer_version) > 128:
-            raise ValidationError("observer_version must be a non-empty string up to 128 characters")
-
         return cls(
             source_event_id=_require_identifier(payload.get("source_event_id"), "source_event_id"),
             episode_id=_require_identifier(payload.get("episode_id"), "episode_id"),
@@ -218,7 +266,7 @@ class Episode:
             active_rooms=tuple(sorted(set(rooms))),
             resident_bucket=resident_bucket,
             signals=tuple(sorted((str(name), str(state)) for name, state in raw_signals.items())),
-            observer_version=observer_version,
+            observer_version=_require_identifier(payload.get("observer_version"), "observer_version"),
         )
 
 

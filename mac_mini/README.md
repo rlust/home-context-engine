@@ -13,13 +13,16 @@ uses only the Python standard library.
 - `input_boolean.ai_actions_enabled` remains OFF. This package cannot read or
   change it.
 - The accepted input is a strict whitelist. Service events and unknown fields
-  are rejected; the whole input batch is rolled back on validation failure.
+  are rejected. One-shot `ingest` is atomic; persistent `ingest-continuous`
+  checkpoints each complete line and quarantines a bad line without blocking
+  later records.
 - Person names/IDs, camera, audio, messages, GPS, credentials, secrets, and
   tokens are rejected. Residents are reduced to `none`, `one`, `multiple`, or
   `unknown`.
 - `stale` and `missing` are stored as distinct signal states from `inactive`.
-- Raw episodes are removed after the configured retention period (30 days by
-  default). Database and report files are mode `0600`.
+- Raw episodes are removed after the configured retention period (45 days by
+  default). Retention must be greater than twice the drift window. Database and
+  report files are mode `0600`.
 - Reporting opens SQLite in read-only/query-only mode. Hermes receives only the
   report, never the raw database or JSONL feed.
 
@@ -31,8 +34,8 @@ and access authorization. An adapter must map only these live helpers:
 |---|---|
 | `mode` | `input_select.home_context_mode` |
 | `activity` | `input_select.home_current_activity` |
-| `confidence` | `input_number.home_context_confidence` |
-| `active_rooms` | `sensor.home_active_room` (12-room whitelist) |
+| `confidence` | `input_number.home_context_confidence`; parse its decimal string exactly, require an integral value, then convert to integer; never round |
+| `active_rooms` | `sensor.home_active_room`; split its comma-separated multi-room state, trim, deduplicate, sort, and enforce the 12-room whitelist |
 | summary context | `input_text.home_context_summary` (derive approved flags; do not store raw text) |
 | next prediction | `input_text.home_next_likely_activity` (future aggregate only; not stored in v1) |
 | feedback | Confirm / Mark Wrong / Unsure buttons and corrected-activity selector |
@@ -50,6 +53,40 @@ cannot silently turn unavailable evidence into absence. Non-response is not a
 feedback record and remains explicitly unreviewed. A `wrong` record must provide
 the corrected activity; `confirm` and `unsure` must not.
 
+`input_number.home_context_confidence` is serialized by HA as a decimal string
+such as `20.0`. The future adapter must call the tested exact parser: `20.0`
+becomes integer `20`; `20.5` is rejected and is never rounded. The live
+`sensor.home_active_room` is genuinely multi-room: for example,
+`Family Room, Office, Kitchen, Foyer`. Split on commas and trim each room.
+`None` maps to an empty list plus `inactive`; `unknown` and `unavailable` map to
+an empty list plus `missing` and must never be treated as absence.
+
+`source_event_id`, `episode_id`, and `observer_version` must be generated opaque
+UUIDs or fixed 32/64-character lowercase hex digests. Entity IDs, person names,
+room names, timestamps, and other readable household data are forbidden in
+identifier values. Feedback is append-only audit history: a household member
+may revise a label, and the report uses the latest event visible at `as_of`,
+ordered by timestamp and then opaque event ID for deterministic ties. Exact
+event replay is idempotent; changed content reusing an event ID is rejected.
+The normalizer must emit each prediction before feedback that references it.
+
+### Continuous-ingest contract
+
+`ingest-continuous` is the only supported persistent path. It records a private
+per-file byte checkpoint and processes only complete newline-terminated records.
+Each accepted line and checkpoint commit together. An invalid line is reduced to
+a SHA-256 fingerprint plus bounded error metadata—raw rejected content is not
+stored—then ingestion advances to later lines. Identical rejected content is
+deduplicated while its occurrence count increases. Both the command result and
+aggregate report expose rejected occurrence and distinct-record counts.
+Quarantine stores neither the raw line nor exception text derived from its
+values—only the line fingerprint, error class, offsets, and counts.
+Rejected counts are explicitly database-lifetime operational health, not
+historical `as_of` classification metrics.
+
+The strict `ingest` command remains available for offline fixtures and manual
+one-shot imports; any invalid line rolls back that entire supplied batch.
+
 ## Local proof commands
 
 From the repository root:
@@ -61,7 +98,7 @@ pilot_dir="$(mktemp -d)"
 python3 -m mac_mini.home_context_analytics.cli ingest \
   --input mac_mini/fixtures/synthetic_events.jsonl \
   --database "$pilot_dir/episodes.sqlite3" \
-  --retention-days 30 \
+  --retention-days 45 \
   --as-of 2026-08-12T18:00:00Z
 
 python3 -m mac_mini.home_context_analytics.cli report \
@@ -72,9 +109,12 @@ python3 -m mac_mini.home_context_analytics.cli report \
 ```
 
 The report includes the reviewed denominator, Confirm/Wrong/Unsure counts,
-unreviewed volume, per-activity confusion, confidence buckets, stale/missing
-signal rate, and adjacent drift-ready windows. `Unsure` is reviewed but excluded
-from scored accuracy.
+unreviewed volume, rejected-record counts, per-activity confusion, stale/missing
+signal rate, and adjacent drift-ready windows. Each confidence bucket contains
+mean predicted confidence, observed accuracy, and absolute calibration gap; the
+report also computes reviewed-count-weighted overall ECE. `Unsure` is reviewed
+but excluded from accuracy and calibration. Calibration values use the 0–1
+scale, so the future 10-percentage-point gate is `ECE <= 0.10`.
 
 ## Pilot success and Phase 4 boundary
 
@@ -100,7 +140,8 @@ manual override. This package cannot enable or perform an action.
    credential. Build and separately review the normalizer; it may emit only the
    documented JSONL fields and may not expose any service-call method.
 3. Choose private local paths outside synced folders, create them mode `0700`,
-   and validate a manual one-shot ingest plus report first.
+   and validate a manual one-shot ingest plus report first. Configure retention
+   greater than twice the report drift window (the 45/14-day defaults comply).
 4. Copy `launchd/xyz.buzz.home-context-analytics.plist.example` to
    `~/Library/LaunchAgents/xyz.buzz.home-context-analytics.plist`, replace every
    placeholder with an explicit local path, run `plutil -lint`, and only then
@@ -108,6 +149,12 @@ manual override. This package cannot enable or perform an action.
 5. Verify that stopping the job changes no HA helper, observer, automation, or
    device state. Verify the generated report against the counters shown in the
    Home Context dashboard.
+
+The launch template invokes `ingest-continuous`, not atomic one-shot ingestion.
+Its JSON stdout is an operator-visible run summary, stderr records command-level
+failure, and the report exposes deduplicated rejected-record counts. A partial
+final line waits for the next run. Rotation/truncation resets that source path's
+checkpoint safely; event-level idempotency still prevents duplicate data.
 
 ## Rollback
 

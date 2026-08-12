@@ -9,13 +9,15 @@
     <string>REPLACE_WITH_PYTHON_3_10_OR_NEWER</string>
     <string>-m</string>
     <string>mac_mini.home_context_analytics.cli</string>
-    <string>ingest</string>
+    <string>ingest-continuous</string>
     <string>--input</string>
     <string>REPLACE_WITH_LOCAL_NORMALIZED_JSONL</string>
     <string>--database</string>
     <string>REPLACE_WITH_LOCAL_PRIVATE_DATABASE</string>
     <string>--retention-days</string>
-    <string>30</string>
+    <string>45</string>
+    <string>--drift-window-days</string>
+    <string>14</string>
   </array>
   <key>WorkingDirectory</key>
   <string>REPLACE_WITH_REPOSITORY_WORKTREE</string>

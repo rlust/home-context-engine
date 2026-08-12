@@ -38,42 +38,63 @@ def build_report(database: Path, *, as_of: datetime, window_days: int = 14) -> d
         raise ValueError("as_of must include a timezone")
     as_of_utc = as_of.astimezone(timezone.utc)
     with read_only_connection(database) as connection:
+        retention_row = connection.execute(
+            "SELECT value FROM metadata WHERE key = 'retention_days'"
+        ).fetchone()
+        retention_days = int(retention_row["value"]) if retention_row else None
+        if retention_days is not None and retention_days <= 2 * window_days:
+            raise ValueError("report window violates retention > 2 x drift-window policy")
         records = []
         for row in connection.execute(
             """
-            SELECT e.episode_id, e.occurred_at, e.activity, e.confidence, e.signals_json,
-                   f.occurred_at AS feedback_occurred_at, f.outcome, f.corrected_activity
-            FROM episodes e
-            LEFT JOIN feedback f ON f.episode_id = e.episode_id
-            ORDER BY e.occurred_at, e.episode_id
+            SELECT episode_id, occurred_at, activity, confidence, signals_json
+            FROM episodes
+            ORDER BY occurred_at, episode_id
             """
         ):
             signals = json.loads(row["signals_json"])
             episode_time = datetime.fromisoformat(row["occurred_at"].replace("Z", "+00:00"))
-            feedback_time = (
-                datetime.fromisoformat(row["feedback_occurred_at"].replace("Z", "+00:00"))
-                if row["feedback_occurred_at"]
-                else None
-            )
-            feedback_is_visible = feedback_time is not None and feedback_time <= as_of_utc
             records.append(
                 {
                     "episode_id": row["episode_id"],
                     "occurred_at": episode_time,
                     "activity": row["activity"],
                     "confidence": row["confidence"],
-                    "outcome": row["outcome"] if feedback_is_visible else None,
-                    "corrected_activity": row["corrected_activity"] if feedback_is_visible else None,
+                    "outcome": None,
+                    "corrected_activity": None,
                     "has_signal_issue": int(any(state in {"stale", "missing"} for state in signals.values())),
                     "signal_states": signals,
                 }
             )
 
+        latest_feedback: dict[str, Any] = {}
+        as_of_text = as_of_utc.isoformat().replace("+00:00", "Z")
+        for row in connection.execute(
+            """
+            SELECT source_event_id, episode_id, occurred_at, outcome, corrected_activity
+            FROM feedback_events
+            WHERE julianday(occurred_at) <= julianday(?)
+            ORDER BY episode_id, julianday(occurred_at), source_event_id
+            """,
+            (as_of_text,),
+        ):
+            latest_feedback[row["episode_id"]] = row
+        rejected = connection.execute(
+            "SELECT COUNT(*) AS distinct_count, COALESCE(SUM(occurrences), 0) AS occurrences FROM rejected_records"
+        ).fetchone()
+
     records = [row for row in records if row["occurred_at"] <= as_of_utc]
+    for row in records:
+        feedback = latest_feedback.get(row["episode_id"])
+        if feedback:
+            row["outcome"] = feedback["outcome"]
+            row["corrected_activity"] = feedback["corrected_activity"]
 
     outcome_counts = Counter(row["outcome"] for row in records if row["outcome"] is not None)
     confusion: dict[str, Counter[str]] = defaultdict(Counter)
-    confidence: dict[str, Counter[str]] = defaultdict(Counter)
+    confidence: dict[str, dict[str, Any]] = defaultdict(
+        lambda: {"reviewed": 0, "correct": 0, "wrong": 0, "confidence_sum": 0}
+    )
     for row in records:
         outcome = row["outcome"]
         if outcome in {"confirm", "wrong"}:
@@ -83,16 +104,33 @@ def build_report(database: Path, *, as_of: datetime, window_days: int = 14) -> d
             bucket = "100" if bucket_start == 100 else f"{bucket_start:02d}-{bucket_start + 9:02d}"
             confidence[bucket]["reviewed"] += 1
             confidence[bucket]["correct" if outcome == "confirm" else "wrong"] += 1
+            confidence[bucket]["confidence_sum"] += row["confidence"]
 
     confidence_buckets = {}
     for bucket in sorted(confidence):
         bucket_counts = confidence[bucket]
+        mean_predicted = round(bucket_counts["confidence_sum"] / bucket_counts["reviewed"] / 100, 4)
+        observed_accuracy = _accuracy(bucket_counts["correct"], bucket_counts["wrong"])
         confidence_buckets[bucket] = {
             "reviewed": bucket_counts["reviewed"],
             "correct": bucket_counts["correct"],
             "wrong": bucket_counts["wrong"],
-            "observed_accuracy": _accuracy(bucket_counts["correct"], bucket_counts["wrong"]),
+            "mean_predicted_confidence": mean_predicted,
+            "observed_accuracy": observed_accuracy,
+            "absolute_calibration_gap": round(abs(mean_predicted - observed_accuracy), 4),
         }
+    scored_count = sum(bucket["reviewed"] for bucket in confidence_buckets.values())
+    ece = (
+        round(
+            sum(
+                bucket["reviewed"] * bucket["absolute_calibration_gap"]
+                for bucket in confidence_buckets.values()
+            ) / scored_count,
+            4,
+        )
+        if scored_count
+        else None
+    )
 
     signal_states = Counter(
         state for row in records for state in row["signal_states"].values()
@@ -119,9 +157,10 @@ def build_report(database: Path, *, as_of: datetime, window_days: int = 14) -> d
         signal_delta = round(current["signal_issue_rate"] - previous["signal_issue_rate"], 4)
 
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "as_of": as_of_utc.isoformat().replace("+00:00", "Z"),
         "scope": "Newark Home Context local anonymous aggregates",
+        "retention_days": retention_days,
         "episodes": len(records),
         "reviewed_denominator": sum(outcome_counts.values()),
         "unreviewed": len(records) - sum(outcome_counts.values()),
@@ -136,6 +175,12 @@ def build_report(database: Path, *, as_of: datetime, window_days: int = 14) -> d
             for predicted, actual_counts in sorted(confusion.items())
         },
         "confidence_buckets": confidence_buckets,
+        "expected_calibration_error": ece,
+        "rejected_records": {
+            "scope": "database_lifetime",
+            "distinct": rejected["distinct_count"],
+            "occurrences": rejected["occurrences"],
+        },
         "signal_health": {
             "episodes_with_stale_or_missing": episodes_with_signal_issues,
             "episode_issue_rate": round(episodes_with_signal_issues / len(records), 4) if records else None,
@@ -182,6 +227,7 @@ def report_markdown(report: dict[str, Any]) -> str:
         f"- Unreviewed: {report['unreviewed']}",
         f"- Confirmed / Wrong / Unsure: {feedback['confirmed']} / {feedback['wrong']} / {feedback['unsure']}",
         f"- Scored accuracy (Unsure excluded): {feedback['scored_accuracy']}",
+        f"- Rejected records (distinct / occurrences): {report['rejected_records']['distinct']} / {report['rejected_records']['occurrences']}",
         "",
         "## Signal health",
         "",
@@ -202,11 +248,12 @@ def report_markdown(report: dict[str, Any]) -> str:
         lines.append("- No scored feedback yet.")
     lines.extend(["", "## Confidence buckets", ""])
     if report["confidence_buckets"]:
-        lines.extend(["| Score | Reviewed | Correct | Wrong | Observed accuracy |", "|---|---:|---:|---:|---:|"])
+        lines.extend(["| Score | Reviewed | Mean confidence | Observed accuracy | Absolute gap |", "|---|---:|---:|---:|---:|"])
         for bucket, values in report["confidence_buckets"].items():
             lines.append(
-                f"| {bucket} | {values['reviewed']} | {values['correct']} | {values['wrong']} | {values['observed_accuracy']} |"
+                f"| {bucket} | {values['reviewed']} | {values['mean_predicted_confidence']} | {values['observed_accuracy']} | {values['absolute_calibration_gap']} |"
             )
+        lines.extend(["", f"Weighted overall ECE: {report['expected_calibration_error']}"])
     else:
         lines.append("No scored feedback yet.")
     window = report["window_comparison"]

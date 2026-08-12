@@ -13,7 +13,7 @@ from typing import Iterator
 from .model import Episode, Feedback
 
 
-SCHEMA_VERSION = "1"
+SCHEMA_VERSION = "2"
 
 
 def _open_writable(path: Path) -> sqlite3.Connection:
@@ -38,15 +38,33 @@ def _open_writable(path: Path) -> sqlite3.Connection:
             signals_json TEXT NOT NULL,
             observer_version TEXT NOT NULL
         );
-        CREATE TABLE IF NOT EXISTS feedback (
-            episode_id TEXT PRIMARY KEY REFERENCES episodes(episode_id) ON DELETE CASCADE,
-            source_event_id TEXT NOT NULL UNIQUE,
+        CREATE TABLE IF NOT EXISTS feedback_events (
+            source_event_id TEXT PRIMARY KEY,
+            episode_id TEXT NOT NULL REFERENCES episodes(episode_id) ON DELETE CASCADE,
             occurred_at TEXT NOT NULL,
             outcome TEXT NOT NULL CHECK(outcome IN ('confirm', 'wrong', 'unsure')),
             corrected_activity TEXT
         );
+        CREATE TABLE IF NOT EXISTS ingest_checkpoints (
+            source_id TEXT PRIMARY KEY,
+            device INTEGER NOT NULL,
+            inode INTEGER NOT NULL,
+            byte_offset INTEGER NOT NULL,
+            updated_at TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS rejected_records (
+            source_id TEXT NOT NULL,
+            fingerprint TEXT NOT NULL,
+            first_line_number INTEGER NOT NULL,
+            first_byte_offset INTEGER NOT NULL,
+            error TEXT NOT NULL,
+            occurrences INTEGER NOT NULL DEFAULT 1,
+            last_seen_at TEXT NOT NULL,
+            PRIMARY KEY(source_id, fingerprint)
+        );
         CREATE INDEX IF NOT EXISTS episodes_occurred_at_idx ON episodes(occurred_at);
-        CREATE INDEX IF NOT EXISTS feedback_occurred_at_idx ON feedback(occurred_at);
+        CREATE INDEX IF NOT EXISTS feedback_events_episode_idx
+            ON feedback_events(episode_id, occurred_at, source_event_id);
         """
     )
     connection.execute(
@@ -56,6 +74,25 @@ def _open_writable(path: Path) -> sqlite3.Connection:
     version = connection.execute(
         "SELECT value FROM metadata WHERE key = 'schema_version'"
     ).fetchone()[0]
+    if version == "1":
+        legacy_feedback = connection.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'feedback'"
+        ).fetchone()
+        if legacy_feedback:
+            connection.execute(
+                """
+                INSERT OR IGNORE INTO feedback_events(
+                    source_event_id, episode_id, occurred_at, outcome, corrected_activity
+                )
+                SELECT source_event_id, episode_id, occurred_at, outcome, corrected_activity
+                FROM feedback
+                """
+            )
+            connection.execute("DROP TABLE feedback")
+        connection.execute(
+            "UPDATE metadata SET value = ? WHERE key = 'schema_version'", (SCHEMA_VERSION,)
+        )
+        version = SCHEMA_VERSION
     if version != SCHEMA_VERSION:
         connection.close()
         raise RuntimeError(f"unsupported database schema version: {version}")
@@ -148,7 +185,7 @@ class LocalStore:
         try:
             self.connection.execute(
                 """
-                INSERT INTO feedback(
+                INSERT INTO feedback_events(
                     episode_id, source_event_id, occurred_at, outcome, corrected_activity
                 ) VALUES (?, ?, ?, ?, ?)
                 """,
@@ -159,13 +196,75 @@ class LocalStore:
             existing = self.connection.execute(
                 """
                 SELECT episode_id, source_event_id, occurred_at, outcome, corrected_activity
-                FROM feedback WHERE episode_id = ? OR source_event_id = ?
+                FROM feedback_events WHERE source_event_id = ?
                 """,
-                (feedback.episode_id, feedback.source_event_id),
+                (feedback.source_event_id,),
             ).fetchone()
             if existing is not None and tuple(existing) == values:
                 return False
-            raise ValueError("feedback must reference an existing episode and use unique identifiers") from exc
+            raise ValueError("feedback source event identifier collision") from exc
+
+    def get_checkpoint(self, source_id: str) -> sqlite3.Row | None:
+        self.connection.row_factory = sqlite3.Row
+        return self.connection.execute(
+            "SELECT device, inode, byte_offset FROM ingest_checkpoints WHERE source_id = ?",
+            (source_id,),
+        ).fetchone()
+
+    def set_checkpoint(
+        self, source_id: str, *, device: int, inode: int, byte_offset: int, updated_at: str
+    ) -> None:
+        self.connection.execute(
+            """
+            INSERT INTO ingest_checkpoints(source_id, device, inode, byte_offset, updated_at)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(source_id) DO UPDATE SET
+                device = excluded.device,
+                inode = excluded.inode,
+                byte_offset = excluded.byte_offset,
+                updated_at = excluded.updated_at
+            """,
+            (source_id, device, inode, byte_offset, updated_at),
+        )
+
+    def record_rejection(
+        self,
+        *,
+        source_id: str,
+        fingerprint: str,
+        line_number: int,
+        byte_offset: int,
+        error: str,
+        seen_at: str,
+    ) -> bool:
+        cursor = self.connection.execute(
+            """
+            INSERT INTO rejected_records(
+                source_id, fingerprint, first_line_number, first_byte_offset,
+                error, occurrences, last_seen_at
+            ) VALUES (?, ?, ?, ?, ?, 1, ?)
+            ON CONFLICT(source_id, fingerprint) DO UPDATE SET
+                occurrences = rejected_records.occurrences + 1,
+                last_seen_at = excluded.last_seen_at
+            """,
+            (source_id, fingerprint, line_number, byte_offset, error[:500], seen_at),
+        )
+        return cursor.rowcount == 1 and self.connection.execute(
+            "SELECT occurrences FROM rejected_records WHERE source_id = ? AND fingerprint = ?",
+            (source_id, fingerprint),
+        ).fetchone()[0] == 1
+
+    def set_retention_policy(self, retention_days: int, drift_window_days: int) -> None:
+        self.connection.executemany(
+            """
+            INSERT INTO metadata(key, value) VALUES (?, ?)
+            ON CONFLICT(key) DO UPDATE SET value = excluded.value
+            """,
+            (
+                ("retention_days", str(retention_days)),
+                ("drift_window_days", str(drift_window_days)),
+            ),
+        )
 
     def purge(self, retention_days: int, as_of: datetime) -> int:
         if retention_days < 1:
