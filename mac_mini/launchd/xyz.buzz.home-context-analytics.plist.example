@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>xyz.buzz.home-context-analytics</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>REPLACE_WITH_PYTHON_3_10_OR_NEWER</string>
+    <string>-m</string>
+    <string>mac_mini.home_context_analytics.cli</string>
+    <string>ingest</string>
+    <string>--input</string>
+    <string>REPLACE_WITH_LOCAL_NORMALIZED_JSONL</string>
+    <string>--database</string>
+    <string>REPLACE_WITH_LOCAL_PRIVATE_DATABASE</string>
+    <string>--retention-days</string>
+    <string>30</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>REPLACE_WITH_REPOSITORY_WORKTREE</string>
+  <key>StartInterval</key>
+  <integer>300</integer>
+  <key>ProcessType</key>
+  <string>Background</string>
+  <key>StandardOutPath</key>
+  <string>REPLACE_WITH_LOCAL_LOG_DIRECTORY/collector.stdout.log</string>
+  <key>StandardErrorPath</key>
+  <string>REPLACE_WITH_LOCAL_LOG_DIRECTORY/collector.stderr.log</string>
+</dict>
+</plist>
