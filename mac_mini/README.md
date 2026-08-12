@@ -58,7 +58,9 @@ and access authorization. An adapter must map only these live helpers:
 The top level is exactly `snapshot_at`, `observer_config`, and `entities`.
 `observer_config` is exactly the reviewed Observer automation ID plus lowercase
 SHA-256 `config_sha256` and `version`; its canonical object becomes the opaque
-`observer_version` digest. Each entity is exactly `state` and `last_changed`.
+`observer_version` digest. Each entity is exactly `state`, `last_changed`, and
+`last_reported`. The latter two are source timestamps, not blanket health
+heartbeats.
 Unknown entities, missing required entities, attributes, service/event fields,
 transport configuration, and other extras are rejected.
 
@@ -91,11 +93,18 @@ counter.home_context_unsure
 
 The seven normalized signals are exterior door, music, Observer health, recent
 arrival, resident presence, room presence, and TV. Binary entity states become
-`active`/`inactive`; `unknown`/`unavailable` become `missing`; an age greater
-than the per-signal threshold becomes `stale` (the exact threshold remains
-fresh). Observer stalled maps to missing evidence, and Observer age over ten
-minutes maps to stale. Residents are emitted only as `none` or `unknown`—never
-as an identity or person count guessed from a household-wide binary sensor.
+`active`/`inactive`, and `unknown`/`unavailable` become `missing`. A stable OFF
+aggregate remains `inactive` even when `last_changed` and `last_reported` are
+old; neither timestamp proves that its upstream source is healthy. The one
+documented transient is positive `recent_arrival`: ON evidence becomes `stale`
+only after its `last_reported` is more than 15 minutes old (exactly 15 minutes
+remains active). Other stable ON/OFF aggregates retain their current state.
+Observer health is governed separately: stalled ON/unknown/unavailable maps to
+missing, and Observer age over ten minutes maps to stale. True negative-source
+outage detection requires future source-specific availability/heartbeat inputs;
+this snapshot contract does not pretend aggregate timestamps provide it.
+Residents are emitted only as `none` or `unknown`—never as an identity or person
+count guessed from a household-wide binary sensor.
 
 Raw summary text is never emitted. It is reduced to a fixed set of approved
 concept flags (`conflict`, `door`, `media`, `missing`, `recent arrival`, or
@@ -112,12 +121,27 @@ version. A timestamp-only five-minute Observer refresh emits nothing. IDs are
 deterministic SHA-256 digests with separate episode/prediction/feedback
 namespaces, making replay stable without embedding household-readable values.
 
-Button `last_changed` timestamps—not counters—are feedback-event cursors. The
-first snapshot establishes a baseline. A later Confirm/Wrong/Unsure timestamp
-emits feedback against the episode visible before that snapshot; a new timestamp
-therefore preserves revisions. Counters only check that audit deltas exactly
-match the newly observed button timestamps; jumps, resets, or unexplained
-increments mark the audit inconsistent but never create feedback events.
+Input-button `state` is the feedback press cursor. `last_changed` may advance
+during HA reload/recreation and is never treated as a press; changing it alone
+emits nothing. The first snapshot establishes a baseline. Later button-state
+timestamps preserve revisions. Counters only check that audit deltas match newly
+observed presses and never create feedback events.
+
+For a semantic transition, the normalizer computes the transition time from
+the `last_changed` timestamp of the source field(s) that changed the transition
+key (or the documented transient expiry time). If a transition and press first
+appear in one snapshot, a press at or after that time labels the new episode; a
+press before it labels the prior episode.
+
+Wrong feedback also audits the corrected-activity picker. Its `last_changed`
+must be newer than the previous snapshot and no later than the button-state
+press time. A stale or later picker value is retained for audit visibility but
+the feedback is marked inconsistent and excluded from accuracy, confusion, and
+calibration. The report exposes inconsistent counts and approved issue codes.
+Known dashboard limitation: selecting the option already retained in the picker
+may not advance `last_changed`; until the dashboard supplies a separate
+selection timestamp, that press is deliberately flagged
+`corrected_activity_stale` rather than silently trusted.
 
 ### True append and crash behavior
 
@@ -136,7 +160,8 @@ remain in metadata and the report; raw rejected content is never retained.
 ## Normalized JSONL contract
 
 Each episode is a `prediction` record. Feedback is a separate record linked by
-anonymous `episode_id`. The synthetic fixture is the canonical example:
+anonymous `episode_id` and carries `audit_consistent` plus an approved
+`audit_issues` list. The synthetic fixture is the canonical example:
 `mac_mini/fixtures/synthetic_events.jsonl`.
 
 Every approved signal must appear in every prediction and be explicitly marked
@@ -213,11 +238,13 @@ python3 -m mac_mini.home_context_analytics.cli report \
 ```
 
 The report includes the reviewed denominator, Confirm/Wrong/Unsure counts,
-unreviewed volume, rejected-record counts, per-activity confusion, stale/missing
-signal rate, and adjacent drift-ready windows. Each confidence bucket contains
+audit-consistent scoring denominator, audit-failure counts, unreviewed volume,
+rejected-record counts, per-activity confusion, stale/missing signal rate, and
+adjacent drift-ready windows. Each confidence bucket contains
 mean predicted confidence, observed accuracy, and absolute calibration gap; the
 report also computes reviewed-count-weighted overall ECE. `Unsure` is reviewed
-but excluded from accuracy and calibration. Calibration values use the 0–1
+but excluded from accuracy and calibration, as is audit-inconsistent feedback.
+Calibration values use the 0–1
 scale, so the future 10-percentage-point gate is `ECE <= 0.10`.
 
 ## Pilot success and Phase 4 boundary
@@ -238,7 +265,9 @@ manual override. This package cannot enable or perform an action.
 
 Synthetic coverage builds variants from
 `fixtures/newark_snapshot_normal.json` for multi-room, unknown/unavailable,
-stale-at-boundary, Observer-stalled, revised feedback, meaningful transition,
+long-stable OFF, transient stale-at-boundary, Observer-stalled, revised
+feedback, reload-only button timestamp changes, both same-window
+transition/press orderings, stale corrected picker, meaningful transition,
 unchanged refresh, and privacy/allowlist rejection cases. Fixtures contain no
 real household state.
 

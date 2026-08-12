@@ -14,6 +14,7 @@ from mac_mini.home_context_analytics.collector import collect_continuous_file
 from mac_mini.home_context_analytics.normalizer import (
     ACTIVITY,
     AI_ACTIONS,
+    ARRIVAL,
     CONFIRM,
     CONFIRMATIONS,
     CORRECTED,
@@ -47,9 +48,9 @@ def refresh(snapshot: dict[str, object], when: str) -> dict[str, object]:
     changed["snapshot_at"] = when
     changed["entities"][OBSERVER_AGE]["state"] = "1"
     changed["entities"][OBSERVER_AGE]["last_changed"] = when
+    changed["entities"][OBSERVER_AGE]["last_reported"] = when
     changed["entities"][OBSERVER_STALLED]["last_changed"] = when
-    for entity_id in (TV, ROOM_PRESENCE):
-        changed["entities"][entity_id]["last_changed"] = when
+    changed["entities"][OBSERVER_STALLED]["last_reported"] = when
     return changed
 
 
@@ -114,17 +115,24 @@ class NormalizerTests(unittest.TestCase):
         self.assertNotIn("summary", prediction)
         self.assertNotIn("Randy", json.dumps(prediction))
 
-    def test_freshness_boundary_unknown_unavailable_and_observer_stalled(self) -> None:
+    def test_stable_off_is_inactive_and_positive_evidence_has_exact_stale_boundary(self) -> None:
         boundary = load_snapshot()
-        boundary["entities"][TV]["last_changed"] = "2026-08-12T17:45:00Z"
+        boundary["entities"][TV]["last_changed"] = "2026-08-01T12:00:00Z"
+        boundary["entities"][TV]["last_reported"] = "2026-08-01T12:00:00Z"
+        boundary["entities"][ARRIVAL]["state"] = "on"
+        boundary["entities"][ARRIVAL]["last_changed"] = "2026-08-12T17:00:00Z"
+        boundary["entities"][ARRIVAL]["last_reported"] = "2026-08-12T17:45:00Z"
         with tempfile.TemporaryDirectory() as temporary_directory, NormalizerState(
             Path(temporary_directory) / "boundary.sqlite3"
         ) as state:
             records, _ = normalize_snapshot(boundary, state)
             self.assertEqual(records[0]["signals"]["tv_active"], "inactive")
+            self.assertEqual(records[0]["signals"]["recent_arrival"], "active")
 
         stale = load_snapshot()
-        stale["entities"][TV]["last_changed"] = "2026-08-12T17:44:59Z"
+        stale["entities"][ARRIVAL]["state"] = "on"
+        stale["entities"][ARRIVAL]["last_changed"] = "2026-08-12T17:00:00Z"
+        stale["entities"][ARRIVAL]["last_reported"] = "2026-08-12T17:44:59Z"
         stale["entities"][ROOM_PRESENCE]["state"] = "unknown"
         stale["entities"]["sensor.home_active_room"]["state"] = "unavailable"
         stale["entities"][OBSERVER_STALLED]["state"] = "on"
@@ -133,7 +141,7 @@ class NormalizerTests(unittest.TestCase):
         ) as state:
             records, _ = normalize_snapshot(stale, state)
             signals = records[0]["signals"]
-            self.assertEqual(signals["tv_active"], "stale")
+            self.assertEqual(signals["recent_arrival"], "stale")
             self.assertEqual(signals["room_presence"], "missing")
             self.assertEqual(signals["observer_health"], "missing")
 
@@ -173,12 +181,18 @@ class NormalizerTests(unittest.TestCase):
             with NormalizerState(root / "state.sqlite3") as state:
                 normalize_and_append(load_snapshot(), state, output)
                 confirm = refresh(load_snapshot(), "2026-08-12T18:05:00Z")
+                confirm["entities"][CONFIRM]["state"] = "2026-08-12T18:04:00Z"
                 confirm["entities"][CONFIRM]["last_changed"] = "2026-08-12T18:04:00Z"
+                confirm["entities"][CONFIRM]["last_reported"] = "2026-08-12T18:04:00Z"
                 confirm["entities"][CONFIRMATIONS]["state"] = "1"
                 confirmed = normalize_and_append(confirm, state, output)
                 wrong = refresh(confirm, "2026-08-12T18:06:00Z")
+                wrong["entities"][WRONG]["state"] = "2026-08-12T18:05:30Z"
                 wrong["entities"][WRONG]["last_changed"] = "2026-08-12T18:05:30Z"
+                wrong["entities"][WRONG]["last_reported"] = "2026-08-12T18:05:30Z"
                 wrong["entities"][CORRECTED]["state"] = "Dining"
+                wrong["entities"][CORRECTED]["last_changed"] = "2026-08-12T18:05:15Z"
+                wrong["entities"][CORRECTED]["last_reported"] = "2026-08-12T18:05:15Z"
                 wrong["entities"][CORRECTIONS]["state"] = "1"
                 revised = normalize_and_append(wrong, state, output)
             records = [json.loads(line) for line in output.read_text(encoding="utf-8").splitlines()]
@@ -188,6 +202,7 @@ class NormalizerTests(unittest.TestCase):
             self.assertEqual(records[1]["episode_id"], records[0]["episode_id"])
             self.assertEqual(records[2]["episode_id"], records[0]["episode_id"])
             self.assertEqual(records[2]["corrected_activity"], "Dining")
+            self.assertTrue(records[2]["audit_consistent"])
 
             counter_only = refresh(wrong, "2026-08-12T18:07:00Z")
             counter_only["entities"][CONFIRMATIONS]["state"] = "50"
@@ -195,6 +210,79 @@ class NormalizerTests(unittest.TestCase):
                 result = normalize_and_append(counter_only, state, output)
             self.assertEqual(result["feedback_created"], 0)
             self.assertFalse(result["counter_audit_consistent"])
+
+    def test_button_state_is_press_cursor_and_reload_last_changed_emits_nothing(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            output = root / "events.jsonl"
+            with NormalizerState(root / "state.sqlite3") as state:
+                normalize_and_append(load_snapshot(), state, output)
+                reloaded = refresh(load_snapshot(), "2026-08-12T18:05:00Z")
+                reloaded["entities"][CONFIRM]["last_changed"] = "2026-08-12T18:04:30Z"
+                reloaded["entities"][CONFIRM]["last_reported"] = "2026-08-12T18:04:30Z"
+                result = normalize_and_append(reloaded, state, output)
+            self.assertEqual(result["feedback_created"], 0)
+            self.assertEqual(len(output.read_text(encoding="utf-8").splitlines()), 1)
+
+    def test_same_window_transition_and_feedback_use_source_time_order(self) -> None:
+        for press_time, transition_source_time, expected_record_index in (
+            ("2026-08-12T18:07:00Z", "2026-08-12T18:06:00Z", 1),
+            ("2026-08-12T18:07:00Z", "2026-08-12T18:08:00Z", 0),
+        ):
+            with self.subTest(
+                press_time=press_time, transition_source_time=transition_source_time
+            ), tempfile.TemporaryDirectory() as temporary_directory:
+                root = Path(temporary_directory)
+                output = root / "events.jsonl"
+                with NormalizerState(root / "state.sqlite3") as state:
+                    normalize_and_append(load_snapshot(), state, output)
+                    changed = refresh(load_snapshot(), "2026-08-12T18:10:00Z")
+                    changed["entities"][ACTIVITY]["state"] = "Cooking"
+                    changed["entities"][ACTIVITY]["last_changed"] = transition_source_time
+                    changed["entities"][ACTIVITY]["last_reported"] = transition_source_time
+                    changed["entities"][CONFIRM]["state"] = press_time
+                    changed["entities"][CONFIRM]["last_changed"] = press_time
+                    changed["entities"][CONFIRM]["last_reported"] = press_time
+                    changed["entities"][CONFIRMATIONS]["state"] = "1"
+                    result = normalize_and_append(changed, state, output)
+                records = [json.loads(line) for line in output.read_text(encoding="utf-8").splitlines()]
+                self.assertEqual(result["feedback_created"], 1)
+                self.assertEqual(records[2]["episode_id"], records[expected_record_index]["episode_id"])
+                self.assertEqual(records[1]["occurred_at"], transition_source_time)
+
+    def test_stale_corrected_picker_is_visible_and_excluded_from_scoring(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            output = root / "events.jsonl"
+            with NormalizerState(root / "normalizer.sqlite3") as state:
+                normalize_and_append(load_snapshot(), state, output)
+                wrong = refresh(load_snapshot(), "2026-08-12T18:05:00Z")
+                wrong["entities"][WRONG]["state"] = "2026-08-12T18:04:00Z"
+                wrong["entities"][WRONG]["last_changed"] = "2026-08-12T18:04:00Z"
+                wrong["entities"][WRONG]["last_reported"] = "2026-08-12T18:04:00Z"
+                wrong["entities"][CORRECTIONS]["state"] = "1"
+                result = normalize_and_append(wrong, state, output)
+            self.assertEqual(result["feedback_audit_failures"], 1)
+            feedback = json.loads(output.read_text(encoding="utf-8").splitlines()[1])
+            self.assertFalse(feedback["audit_consistent"])
+            self.assertEqual(feedback["audit_issues"], ["corrected_activity_stale"])
+            collect_continuous_file(
+                output,
+                root / "analytics.sqlite3",
+                as_of=datetime(2026, 8, 12, 18, 5, tzinfo=timezone.utc),
+            )
+            report = build_report(
+                root / "analytics.sqlite3",
+                as_of=datetime(2026, 8, 12, 18, 5, tzinfo=timezone.utc),
+            )
+            self.assertEqual(report["feedback"]["wrong"], 1)
+            self.assertEqual(report["feedback"]["audit_inconsistent"], 1)
+            self.assertEqual(
+                report["feedback"]["audit_issue_counts"], {"corrected_activity_stale": 1}
+            )
+            self.assertEqual(report["feedback"]["audit_consistent_scored"], 0)
+            self.assertIsNone(report["feedback"]["scored_accuracy"])
+            self.assertIsNone(report["expected_calibration_error"])
 
     def test_stable_opaque_ids_replay_and_namespace_separation(self) -> None:
         snapshot = load_snapshot()

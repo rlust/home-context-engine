@@ -38,7 +38,12 @@ class EndToEndTests(unittest.TestCase):
                 window_days=7,
             )
             self.assertEqual(report["reviewed_denominator"], 6)
-            self.assertEqual(report["feedback"], {"confirmed": 4, "wrong": 1, "unsure": 1, "scored_accuracy": 0.8})
+            self.assertEqual(report["feedback"]["confirmed"], 4)
+            self.assertEqual(report["feedback"]["wrong"], 1)
+            self.assertEqual(report["feedback"]["unsure"], 1)
+            self.assertEqual(report["feedback"]["audit_consistent_scored"], 5)
+            self.assertEqual(report["feedback"]["audit_inconsistent"], 0)
+            self.assertEqual(report["feedback"]["scored_accuracy"], 0.8)
             self.assertEqual(report["per_activity_confusion"]["Daily Life"], {"Cooking": 1})
             self.assertEqual(report["signal_health"]["episodes_with_stale_or_missing"], 2)
             self.assertEqual(report["signal_health"]["episodes_with_missing"], 1)
@@ -127,6 +132,8 @@ class EndToEndTests(unittest.TestCase):
             "occurred_at": "2026-07-28T13:02:00Z",
             "outcome": "wrong",
             "corrected_activity": "Cooking",
+            "audit_consistent": True,
+            "audit_issues": [],
         }
         tie_break_confirm = {
             "kind": "feedback",
@@ -135,6 +142,8 @@ class EndToEndTests(unittest.TestCase):
             "occurred_at": "2026-07-28T13:03:00Z",
             "outcome": "confirm",
             "corrected_activity": None,
+            "audit_consistent": True,
+            "audit_issues": [],
         }
         tie_break_wrong = {
             "kind": "feedback",
@@ -143,6 +152,8 @@ class EndToEndTests(unittest.TestCase):
             "occurred_at": "2026-07-28T13:03:00Z",
             "outcome": "wrong",
             "corrected_activity": "Cooking",
+            "audit_consistent": True,
+            "audit_issues": [],
         }
         content = "\n".join(
             [

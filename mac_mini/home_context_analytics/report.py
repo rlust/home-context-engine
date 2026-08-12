@@ -19,6 +19,11 @@ def _accuracy(correct: int, incorrect: int) -> float | None:
 def _window_summary(rows: Iterable[dict[str, Any]]) -> dict[str, Any]:
     materialized = list(rows)
     outcomes = Counter(row["outcome"] for row in materialized if row["outcome"] is not None)
+    scored = Counter(
+        row["outcome"]
+        for row in materialized
+        if row["audit_consistent"] and row["outcome"] in {"confirm", "wrong"}
+    )
     signal_issue_count = sum(row["has_signal_issue"] for row in materialized)
     return {
         "episodes": len(materialized),
@@ -26,7 +31,7 @@ def _window_summary(rows: Iterable[dict[str, Any]]) -> dict[str, Any]:
         "confirmed": outcomes["confirm"],
         "wrong": outcomes["wrong"],
         "unsure": outcomes["unsure"],
-        "accuracy": _accuracy(outcomes["confirm"], outcomes["wrong"]),
+        "accuracy": _accuracy(scored["confirm"], scored["wrong"]),
         "signal_issue_rate": round(signal_issue_count / len(materialized), 4) if materialized else None,
     }
 
@@ -65,6 +70,8 @@ def build_report(database: Path, *, as_of: datetime, window_days: int = 14) -> d
                     "confidence": row["confidence"],
                     "outcome": None,
                     "corrected_activity": None,
+                    "audit_consistent": True,
+                    "audit_issues": [],
                     "has_signal_issue": int(any(state in {"stale", "missing"} for state in signals.values())),
                     "signal_states": signals,
                 }
@@ -74,7 +81,8 @@ def build_report(database: Path, *, as_of: datetime, window_days: int = 14) -> d
         as_of_text = as_of_utc.isoformat().replace("+00:00", "Z")
         for row in connection.execute(
             """
-            SELECT source_event_id, episode_id, occurred_at, outcome, corrected_activity
+            SELECT source_event_id, episode_id, occurred_at, outcome, corrected_activity,
+                   audit_consistent, audit_issues_json
             FROM feedback_events
             WHERE julianday(occurred_at) <= julianday(?)
             ORDER BY episode_id, julianday(occurred_at), source_event_id
@@ -98,6 +106,8 @@ def build_report(database: Path, *, as_of: datetime, window_days: int = 14) -> d
         if feedback:
             row["outcome"] = feedback["outcome"]
             row["corrected_activity"] = feedback["corrected_activity"]
+            row["audit_consistent"] = bool(feedback["audit_consistent"])
+            row["audit_issues"] = json.loads(feedback["audit_issues_json"])
 
     outcome_counts = Counter(row["outcome"] for row in records if row["outcome"] is not None)
     confusion: dict[str, Counter[str]] = defaultdict(Counter)
@@ -106,7 +116,7 @@ def build_report(database: Path, *, as_of: datetime, window_days: int = 14) -> d
     )
     for row in records:
         outcome = row["outcome"]
-        if outcome in {"confirm", "wrong"}:
+        if row["audit_consistent"] and outcome in {"confirm", "wrong"}:
             actual = row["activity"] if outcome == "confirm" else row["corrected_activity"]
             confusion[row["activity"]][actual] += 1
             bucket_start = (row["confidence"] // 10) * 10
@@ -151,6 +161,17 @@ def build_report(database: Path, *, as_of: datetime, window_days: int = 14) -> d
     episodes_with_stale = sum(
         any(state == "stale" for state in row["signal_states"].values()) for row in records
     )
+    audit_issue_counts = Counter(
+        issue for row in records for issue in row["audit_issues"]
+    )
+    audit_inconsistent = sum(
+        row["outcome"] is not None and not row["audit_consistent"] for row in records
+    )
+    scored_outcomes = Counter(
+        row["outcome"]
+        for row in records
+        if row["audit_consistent"] and row["outcome"] in {"confirm", "wrong"}
+    )
 
     current_start = as_of_utc - timedelta(days=window_days)
     previous_start = current_start - timedelta(days=window_days)
@@ -177,7 +198,10 @@ def build_report(database: Path, *, as_of: datetime, window_days: int = 14) -> d
             "confirmed": outcome_counts["confirm"],
             "wrong": outcome_counts["wrong"],
             "unsure": outcome_counts["unsure"],
-            "scored_accuracy": _accuracy(outcome_counts["confirm"], outcome_counts["wrong"]),
+            "audit_consistent_scored": sum(scored_outcomes.values()),
+            "audit_inconsistent": audit_inconsistent,
+            "audit_issue_counts": dict(sorted(audit_issue_counts.items())),
+            "scored_accuracy": _accuracy(scored_outcomes["confirm"], scored_outcomes["wrong"]),
         },
         "per_activity_confusion": {
             predicted: dict(sorted(actual_counts.items()))
@@ -239,7 +263,10 @@ def report_markdown(report: dict[str, Any]) -> str:
         f"- Reviewed denominator: {report['reviewed_denominator']}",
         f"- Unreviewed: {report['unreviewed']}",
         f"- Confirmed / Wrong / Unsure: {feedback['confirmed']} / {feedback['wrong']} / {feedback['unsure']}",
-        f"- Scored accuracy (Unsure excluded): {feedback['scored_accuracy']}",
+        f"- Audit-consistent scored feedback: {feedback['audit_consistent_scored']}",
+        f"- Audit-inconsistent feedback: {feedback['audit_inconsistent']}",
+        f"- Feedback audit issues: {json.dumps(feedback['audit_issue_counts'], sort_keys=True)}",
+        f"- Scored accuracy (Unsure and audit failures excluded): {feedback['scored_accuracy']}",
         f"- Rejected records (lifetime distinct / occurrences): {report['rejected_records']['total_distinct']} / {report['rejected_records']['total_occurrences']}",
         "",
         "## Signal health",

@@ -271,13 +271,16 @@ class CliAndRetentionTests(unittest.TestCase):
                     "SELECT value FROM metadata WHERE key = 'schema_version'"
                 ).fetchone()[0]
                 migrated = store.connection.execute(
-                    "SELECT outcome FROM feedback_events WHERE source_event_id = 'legacy-feedback'"
-                ).fetchone()[0]
+                    """
+                    SELECT outcome, audit_consistent, audit_issues_json
+                    FROM feedback_events WHERE source_event_id = 'legacy-feedback'
+                    """
+                ).fetchone()
                 legacy_table = store.connection.execute(
                     "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'feedback'"
                 ).fetchone()
-            self.assertEqual(version, "3")
-            self.assertEqual(migrated, "confirm")
+            self.assertEqual(version, "4")
+            self.assertEqual(tuple(migrated), ("confirm", 1, "[]"))
             self.assertIsNone(legacy_table)
 
     def test_invalid_record_rolls_back_entire_input_batch(self) -> None:

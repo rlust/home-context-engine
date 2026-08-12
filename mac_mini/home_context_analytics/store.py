@@ -13,7 +13,7 @@ from typing import Iterator
 from .model import Episode, Feedback
 
 
-SCHEMA_VERSION = "3"
+SCHEMA_VERSION = "4"
 
 
 def _open_writable(path: Path) -> sqlite3.Connection:
@@ -45,7 +45,9 @@ def _open_writable(path: Path) -> sqlite3.Connection:
             episode_id TEXT NOT NULL REFERENCES episodes(episode_id) ON DELETE CASCADE,
             occurred_at TEXT NOT NULL,
             outcome TEXT NOT NULL CHECK(outcome IN ('confirm', 'wrong', 'unsure')),
-            corrected_activity TEXT
+            corrected_activity TEXT,
+            audit_consistent INTEGER NOT NULL DEFAULT 1 CHECK(audit_consistent IN (0, 1)),
+            audit_issues_json TEXT NOT NULL DEFAULT '[]'
         );
         CREATE TABLE IF NOT EXISTS ingest_checkpoints (
             source_id TEXT PRIMARY KEY,
@@ -103,6 +105,20 @@ def _open_writable(path: Path) -> sqlite3.Connection:
             )
         if "next_activity" not in columns:
             connection.execute("ALTER TABLE episodes ADD COLUMN next_activity TEXT")
+        connection.execute("UPDATE metadata SET value = '3' WHERE key = 'schema_version'")
+        version = "3"
+    if version == "3":
+        feedback_columns = {
+            row[1] for row in connection.execute("PRAGMA table_info(feedback_events)").fetchall()
+        }
+        if "audit_consistent" not in feedback_columns:
+            connection.execute(
+                "ALTER TABLE feedback_events ADD COLUMN audit_consistent INTEGER NOT NULL DEFAULT 1"
+            )
+        if "audit_issues_json" not in feedback_columns:
+            connection.execute(
+                "ALTER TABLE feedback_events ADD COLUMN audit_issues_json TEXT NOT NULL DEFAULT '[]'"
+            )
         connection.execute(
             "UPDATE metadata SET value = ? WHERE key = 'schema_version'", (SCHEMA_VERSION,)
         )
@@ -199,13 +215,16 @@ class LocalStore:
             feedback.occurred_at,
             feedback.outcome,
             feedback.corrected_activity,
+            int(feedback.audit_consistent),
+            json.dumps(feedback.audit_issues, separators=(",", ":")),
         )
         try:
             self.connection.execute(
                 """
                 INSERT INTO feedback_events(
-                    episode_id, source_event_id, occurred_at, outcome, corrected_activity
-                ) VALUES (?, ?, ?, ?, ?)
+                    episode_id, source_event_id, occurred_at, outcome, corrected_activity,
+                    audit_consistent, audit_issues_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
                 values,
             )
@@ -213,7 +232,8 @@ class LocalStore:
         except sqlite3.IntegrityError as exc:
             existing = self.connection.execute(
                 """
-                SELECT episode_id, source_event_id, occurred_at, outcome, corrected_activity
+                SELECT episode_id, source_event_id, occurred_at, outcome, corrected_activity,
+                       audit_consistent, audit_issues_json
                 FROM feedback_events WHERE source_event_id = ?
                 """,
                 (feedback.source_event_id,),

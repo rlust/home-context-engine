@@ -7,7 +7,7 @@ import json
 import os
 import sqlite3
 import stat
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -74,7 +74,7 @@ REQUIRED_ENTITIES = frozenset(
 )
 
 _SNAPSHOT_KEYS = frozenset({"snapshot_at", "observer_config", "entities"})
-_ENTITY_KEYS = frozenset({"state", "last_changed"})
+_ENTITY_KEYS = frozenset({"state", "last_changed", "last_reported"})
 _OBSERVER_KEYS = frozenset({"automation_id", "config_sha256", "version"})
 _FORBIDDEN_TOP_LEVEL = frozenset({"event", "service", "services", "url", "token", "websocket", "mcp"})
 
@@ -88,14 +88,8 @@ SIGNAL_ENTITY = {
     "tv_active": TV,
 }
 
-FRESHNESS_SECONDS = {
-    "exterior_door": 900,
-    "music_playing": 900,
-    "observer_health": 900,
+POSITIVE_EVIDENCE_SECONDS = {
     "recent_arrival": 900,
-    "resident_presence": 1800,
-    "room_presence": 900,
-    "tv_active": 900,
 }
 
 _SUMMARY_FLAGS = {
@@ -152,40 +146,48 @@ def _entity(snapshot: Mapping[str, Any], entity_id: str) -> Mapping[str, str]:
     if not isinstance(entity["state"], str):
         raise SnapshotError(f"{entity_id}.state must be a string")
     _parse_time(entity["last_changed"], f"{entity_id}.last_changed")
+    _parse_time(entity["last_reported"], f"{entity_id}.last_reported")
     return entity
 
 
-def _binary_signal(entity: Mapping[str, str], now: datetime, threshold: int) -> str:
+def _binary_signal(
+    entity: Mapping[str, str], now: datetime, threshold: int | None
+) -> tuple[str, datetime]:
     state = entity["state"].strip().lower()
     if state in {"unknown", "unavailable"}:
-        return "missing"
+        return "missing", _parse_time(entity["last_changed"], "last_changed")
     changed = _parse_time(entity["last_changed"], "last_changed")
-    age = (now - changed).total_seconds()
-    if age < 0:
-        raise SnapshotError("entity last_changed cannot be after snapshot_at")
-    if age > threshold:
-        return "stale"
-    if state == "on":
-        return "active"
     if state == "off":
-        return "inactive"
+        return "inactive", changed
+    if state == "on":
+        if threshold is None:
+            return "active", changed
+        reported = _parse_time(entity["last_reported"], "last_reported")
+        stale_at = reported + timedelta(seconds=threshold)
+        if now > stale_at:
+            return "stale", stale_at
+        return "active", changed
     raise SnapshotError("binary entity state must be on, off, unknown, or unavailable")
 
 
-def _observer_signal(snapshot: Mapping[str, Any], now: datetime) -> str:
-    stalled = _binary_signal(_entity(snapshot, OBSERVER_STALLED), now, FRESHNESS_SECONDS["observer_health"])
-    if stalled in {"missing", "stale"}:
-        return stalled
-    if stalled == "active":
-        return "missing"
-    age_state = _entity(snapshot, OBSERVER_AGE)["state"].strip().lower()
+def _observer_signal(snapshot: Mapping[str, Any], now: datetime) -> tuple[str, datetime]:
+    stalled_entity = _entity(snapshot, OBSERVER_STALLED)
+    stalled_state = stalled_entity["state"].strip().lower()
+    stalled_changed = _parse_time(stalled_entity["last_changed"], f"{OBSERVER_STALLED}.last_changed")
+    if stalled_state in {"unknown", "unavailable", "on"}:
+        return "missing", stalled_changed
+    if stalled_state != "off":
+        raise SnapshotError("Observer stalled state must be on, off, unknown, or unavailable")
+    age_entity = _entity(snapshot, OBSERVER_AGE)
+    age_state = age_entity["state"].strip().lower()
+    age_changed = _parse_time(age_entity["last_changed"], f"{OBSERVER_AGE}.last_changed")
     if age_state in {"unknown", "unavailable"}:
-        return "missing"
+        return "missing", age_changed
     try:
         age_minutes = float(age_state)
     except ValueError as exc:
         raise SnapshotError("observer age must be numeric, unknown, or unavailable") from exc
-    return "stale" if age_minutes > 10 else "active"
+    return ("stale" if age_minutes > 10 else "active"), age_changed
 
 
 def _summary_flags(value: str) -> tuple[str, ...]:
@@ -203,8 +205,8 @@ def _opaque_digest(namespace: str, *parts: str) -> str:
     return hashlib.sha256(framed.encode("utf-8")).hexdigest()
 
 
-def _transition_key(prediction: Mapping[str, Any]) -> str:
-    semantic = {
+def _transition_components(prediction: Mapping[str, Any]) -> dict[str, Any]:
+    return {
         "mode": prediction["mode"],
         "activity": prediction["activity"],
         "confidence_band": prediction["confidence"] // 5,
@@ -215,6 +217,9 @@ def _transition_key(prediction: Mapping[str, Any]) -> str:
         "next_activity": prediction["next_activity"],
         "observer_version": prediction["observer_version"],
     }
+
+
+def _transition_key(semantic: Mapping[str, Any]) -> str:
     return hashlib.sha256(
         json.dumps(semantic, sort_keys=True, separators=(",", ":")).encode("utf-8")
     ).hexdigest()
@@ -233,11 +238,24 @@ class NormalizerState:
                 transition_key TEXT NOT NULL,
                 episode_id TEXT NOT NULL,
                 snapshot_at TEXT NOT NULL,
+                transition_time TEXT NOT NULL DEFAULT '',
+                transition_components_json TEXT NOT NULL DEFAULT '{}',
                 feedback_cursors_json TEXT NOT NULL,
                 counter_snapshot_json TEXT NOT NULL
             )
             """
         )
+        columns = {
+            row[1] for row in self.connection.execute("PRAGMA table_info(normalizer_state)").fetchall()
+        }
+        if "transition_time" not in columns:
+            self.connection.execute(
+                "ALTER TABLE normalizer_state ADD COLUMN transition_time TEXT NOT NULL DEFAULT ''"
+            )
+        if "transition_components_json" not in columns:
+            self.connection.execute(
+                "ALTER TABLE normalizer_state ADD COLUMN transition_components_json TEXT NOT NULL DEFAULT '{}'"
+            )
         self.connection.commit()
         os.chmod(path, 0o600)
 
@@ -259,6 +277,8 @@ class NormalizerState:
         transition_key: str,
         episode_id: str,
         snapshot_at: str,
+        transition_time: str,
+        transition_components: Mapping[str, Any],
         feedback_cursors: Mapping[str, str],
         counters: Mapping[str, int],
     ) -> None:
@@ -266,12 +286,15 @@ class NormalizerState:
             """
             INSERT INTO normalizer_state(
                 singleton, transition_key, episode_id, snapshot_at,
+                transition_time, transition_components_json,
                 feedback_cursors_json, counter_snapshot_json
-            ) VALUES (1, ?, ?, ?, ?, ?)
+            ) VALUES (1, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(singleton) DO UPDATE SET
                 transition_key = excluded.transition_key,
                 episode_id = excluded.episode_id,
                 snapshot_at = excluded.snapshot_at,
+                transition_time = excluded.transition_time,
+                transition_components_json = excluded.transition_components_json,
                 feedback_cursors_json = excluded.feedback_cursors_json,
                 counter_snapshot_json = excluded.counter_snapshot_json
             """,
@@ -279,6 +302,8 @@ class NormalizerState:
                 transition_key,
                 episode_id,
                 snapshot_at,
+                transition_time,
+                json.dumps(transition_components, sort_keys=True, separators=(",", ":")),
                 json.dumps(feedback_cursors, sort_keys=True, separators=(",", ":")),
                 json.dumps(counters, sort_keys=True, separators=(",", ":")),
             ),
@@ -303,7 +328,12 @@ def validate_snapshot(snapshot: Any) -> Mapping[str, Any]:
     _parse_time(snapshot["snapshot_at"], "snapshot_at")
     _observer_digest(snapshot["observer_config"])
     for entity_id in REQUIRED_ENTITIES:
-        _entity(snapshot, entity_id)
+        entity = _entity(snapshot, entity_id)
+        for timestamp_field in ("last_changed", "last_reported"):
+            if _parse_time(entity[timestamp_field], f"{entity_id}.{timestamp_field}") > _parse_time(
+                snapshot["snapshot_at"], "snapshot_at"
+            ):
+                raise SnapshotError(f"{entity_id}.{timestamp_field} cannot be after snapshot_at")
     return snapshot
 
 
@@ -321,13 +351,23 @@ def normalize_snapshot(snapshot: Any, state: NormalizerState) -> tuple[list[dict
         raise SnapshotError("activity is not whitelisted")
     confidence = normalize_ha_confidence(_entity(snapshot, CONFIDENCE)["state"])
     rooms, room_state = normalize_ha_active_rooms(_entity(snapshot, ACTIVE_ROOMS)["state"])
-    signals = {
-        name: _binary_signal(_entity(snapshot, entity_id), snapshot_time, FRESHNESS_SECONDS[name])
+    signal_results = {
+        name: _binary_signal(
+            _entity(snapshot, entity_id), snapshot_time, POSITIVE_EVIDENCE_SECONDS.get(name)
+        )
         for name, entity_id in SIGNAL_ENTITY.items()
         if name != "observer_health"
     }
-    signals["observer_health"] = _observer_signal(snapshot, snapshot_time)
-    signals["room_presence"] = room_state if room_state in {"missing", "inactive"} else signals["room_presence"]
+    signal_results["observer_health"] = _observer_signal(snapshot, snapshot_time)
+    signals = {name: result[0] for name, result in signal_results.items()}
+    if room_state in {"missing", "inactive"}:
+        signals["room_presence"] = room_state
+        signal_results["room_presence"] = (
+            room_state,
+            _parse_time(
+                _entity(snapshot, ACTIVE_ROOMS)["last_changed"], f"{ACTIVE_ROOMS}.last_changed"
+            ),
+        )
 
     resident_bucket = "none" if signals["resident_presence"] == "inactive" else "unknown"
     observer_version = _observer_digest(snapshot["observer_config"])
@@ -350,21 +390,47 @@ def normalize_snapshot(snapshot: Any, state: NormalizerState) -> tuple[list[dict
         "context_flags": list(_summary_flags(summary)),
         "next_activity": _next_activity(_entity(snapshot, NEXT_ACTIVITY)["state"]),
     }
-    transition_key = _transition_key(prediction)
+    semantic = _transition_components(prediction)
+    transition_key = _transition_key(semantic)
     prior = state.load()
     if prior and snapshot_time < _parse_time(prior["snapshot_at"], "prior snapshot"):
         raise SnapshotError("snapshot_at cannot move backward")
     records: list[dict[str, Any]] = []
-    if prior is None or prior["transition_key"] != transition_key:
-        current_episode_id = _opaque_digest("episode", observer_version, transition_key, snapshot_at)
+    new_transition = prior is None or prior["transition_key"] != transition_key
+    if new_transition:
+        prior_semantic = json.loads(prior["transition_components_json"]) if prior else {}
+        component_times = {
+            "mode": _parse_time(_entity(snapshot, MODE)["last_changed"], f"{MODE}.last_changed"),
+            "activity": _parse_time(_entity(snapshot, ACTIVITY)["last_changed"], f"{ACTIVITY}.last_changed"),
+            "confidence_band": _parse_time(_entity(snapshot, CONFIDENCE)["last_changed"], f"{CONFIDENCE}.last_changed"),
+            "active_rooms": _parse_time(_entity(snapshot, ACTIVE_ROOMS)["last_changed"], f"{ACTIVE_ROOMS}.last_changed"),
+            "resident_bucket": signal_results["resident_presence"][1],
+            "context_flags": _parse_time(_entity(snapshot, SUMMARY)["last_changed"], f"{SUMMARY}.last_changed"),
+            "next_activity": _parse_time(_entity(snapshot, NEXT_ACTIVITY)["last_changed"], f"{NEXT_ACTIVITY}.last_changed"),
+            "observer_version": snapshot_time,
+        }
+        changed_times = [
+            component_times[name]
+            for name in component_times
+            if prior is None or prior_semantic.get(name) != semantic[name]
+        ]
+        prior_signals = prior_semantic.get("signals", {})
+        changed_times.extend(
+            signal_results[name][1]
+            for name in signals
+            if prior is None or prior_signals.get(name) != signals[name]
+        )
+        transition_datetime = max(changed_times, default=snapshot_time)
+        transition_time = transition_datetime.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+        current_episode_id = _opaque_digest("episode", observer_version, transition_key, transition_time)
         prediction["episode_id"] = current_episode_id
-        prediction["source_event_id"] = _opaque_digest("prediction", current_episode_id, snapshot_at)
+        prediction["source_event_id"] = _opaque_digest("prediction", current_episode_id, transition_time)
+        prediction["occurred_at"] = transition_time
         parse_record(prediction)
         records.append(prediction)
     else:
         current_episode_id = prior["episode_id"]
-
-    feedback_episode_id = prior["episode_id"] if prior else current_episode_id
+        transition_time = prior["transition_time"] or prior["snapshot_at"]
 
     previous_cursors = json.loads(prior["feedback_cursors_json"]) if prior else {}
     current_cursors: dict[str, str] = {}
@@ -376,7 +442,9 @@ def normalize_snapshot(snapshot: Any, state: NormalizerState) -> tuple[list[dict
     )
     for outcome, entity_id, corrected_activity in feedback_specs:
         entity = _entity(snapshot, entity_id)
-        cursor = parse_timestamp(entity["last_changed"], f"{entity_id}.last_changed")
+        cursor = parse_timestamp(entity["state"], f"{entity_id}.state")
+        if _parse_time(cursor, "feedback cursor") > snapshot_time:
+            raise SnapshotError("feedback button state timestamp cannot be after snapshot_at")
         current_cursors[outcome] = cursor
         if previous_cursors.get(outcome) == cursor:
             continue
@@ -384,6 +452,20 @@ def normalize_snapshot(snapshot: Any, state: NormalizerState) -> tuple[list[dict
             continue
         if _parse_time(cursor, "feedback cursor") <= _parse_time(prior["snapshot_at"], "prior snapshot"):
             continue
+        feedback_episode_id = current_episode_id
+        if new_transition and _parse_time(cursor, "feedback cursor") < _parse_time(
+            transition_time, "transition time"
+        ):
+            feedback_episode_id = prior["episode_id"]
+        audit_issues: list[str] = []
+        if outcome == "wrong":
+            corrected_changed = _parse_time(
+                _entity(snapshot, CORRECTED)["last_changed"], f"{CORRECTED}.last_changed"
+            )
+            if corrected_changed <= _parse_time(prior["snapshot_at"], "prior snapshot"):
+                audit_issues.append("corrected_activity_stale")
+            if corrected_changed > _parse_time(cursor, "feedback cursor"):
+                audit_issues.append("corrected_activity_after_press")
         feedback = {
             "kind": "feedback",
             "source_event_id": _opaque_digest("feedback", feedback_episode_id, outcome, cursor),
@@ -391,6 +473,8 @@ def normalize_snapshot(snapshot: Any, state: NormalizerState) -> tuple[list[dict
             "occurred_at": cursor,
             "outcome": outcome,
             "corrected_activity": corrected_activity if outcome == "wrong" else None,
+            "audit_consistent": not audit_issues,
+            "audit_issues": audit_issues,
         }
         parse_record(feedback)
         records.append(feedback)
@@ -426,10 +510,17 @@ def normalize_snapshot(snapshot: Any, state: NormalizerState) -> tuple[list[dict
         "prediction_created": any(record["kind"] == "prediction" for record in records),
         "feedback_created": sum(record["kind"] == "feedback" for record in records),
         "counter_audit_consistent": audit_consistent,
+        "feedback_audit_failures": sum(
+            not record["audit_consistent"]
+            for record in records
+            if record["kind"] == "feedback"
+        ),
         "pending_state": {
             "transition_key": transition_key,
             "episode_id": current_episode_id,
             "snapshot_at": snapshot_at,
+            "transition_time": transition_time,
+            "transition_components": semantic,
             "feedback_cursors": current_cursors,
             "counters": counters,
         },

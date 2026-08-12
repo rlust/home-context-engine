@@ -86,6 +86,8 @@ class ModelTests(unittest.TestCase):
             "occurred_at": "2026-08-12T16:01:00Z",
             "outcome": "wrong",
             "corrected_activity": None,
+            "audit_consistent": True,
+            "audit_issues": [],
         }
         with self.assertRaisesRegex(ValidationError, "requires"):
             parse_record(payload)

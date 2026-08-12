@@ -69,6 +69,9 @@ SIGNALS = frozenset(
 SIGNAL_STATES = frozenset({"active", "inactive", "stale", "missing"})
 RESIDENT_BUCKETS = frozenset({"none", "one", "multiple", "unknown"})
 FEEDBACK_OUTCOMES = frozenset({"confirm", "wrong", "unsure"})
+FEEDBACK_AUDIT_ISSUES = frozenset(
+    {"corrected_activity_after_press", "corrected_activity_stale"}
+)
 CONTEXT_FLAGS = frozenset(
     {
         "summary_conflict",
@@ -106,6 +109,8 @@ _FEEDBACK_KEYS = frozenset(
         "occurred_at",
         "outcome",
         "corrected_activity",
+        "audit_consistent",
+        "audit_issues",
     }
 )
 
@@ -303,6 +308,8 @@ class Feedback:
     occurred_at: str
     outcome: str
     corrected_activity: str | None
+    audit_consistent: bool
+    audit_issues: tuple[str, ...]
 
     @classmethod
     def from_payload(cls, payload: Mapping[str, Any]) -> "Feedback":
@@ -318,6 +325,21 @@ class Feedback:
                 raise ValidationError("wrong feedback requires a whitelisted corrected_activity")
         elif corrected_activity is not None:
             raise ValidationError("corrected_activity is only allowed for wrong feedback")
+        audit_consistent = payload.get("audit_consistent")
+        if not isinstance(audit_consistent, bool):
+            raise ValidationError("audit_consistent must be a boolean")
+        raw_audit_issues = payload.get("audit_issues")
+        if not isinstance(raw_audit_issues, list) or not all(
+            isinstance(issue, str) for issue in raw_audit_issues
+        ):
+            raise ValidationError("audit_issues must be a list of approved strings")
+        unknown_issues = set(raw_audit_issues) - FEEDBACK_AUDIT_ISSUES
+        if unknown_issues:
+            raise ValidationError(
+                f"feedback audit issues are not approved: {', '.join(sorted(unknown_issues))}"
+            )
+        if audit_consistent != (not raw_audit_issues):
+            raise ValidationError("audit_consistent must be false exactly when audit_issues exist")
 
         return cls(
             source_event_id=_require_identifier(payload.get("source_event_id"), "source_event_id"),
@@ -325,6 +347,8 @@ class Feedback:
             occurred_at=parse_timestamp(payload.get("occurred_at")),
             outcome=outcome,
             corrected_activity=corrected_activity,
+            audit_consistent=audit_consistent,
+            audit_issues=tuple(sorted(set(raw_audit_issues))),
         )
 
 
