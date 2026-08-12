@@ -30,6 +30,8 @@
   </dict>
   <key>ProcessType</key>
   <string>Background</string>
+  <key>Umask</key>
+  <integer>63</integer>
   <key>StandardOutPath</key>
   <string>REPLACE_WITH_LOCAL_LOG_DIRECTORY/receiver.stdout.log</string>
   <key>StandardErrorPath</key>

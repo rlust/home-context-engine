@@ -424,6 +424,9 @@ real household state.
    explicit local path, run `plutil -lint`, and only then bootstrap them after
    owner approval. The receiver plist must invoke an owner-reviewed wrapper that
    injects the Keychain secret through the environment; it must not contain it.
+   Both templates set launchd `Umask` to decimal `63` (`077`) so newly created
+   databases, reports, and stdout/stderr logs are owner-only. Verify every
+   household-derived runtime artifact reads back as mode `0600`.
 6. Validate HA configuration, take a fresh backup, and obtain explicit approval
    for the restart required to install the draft `rest_command` and automation.
 7. Verify that stopping the job changes no HA helper, observer, automation, or

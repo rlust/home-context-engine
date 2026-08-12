@@ -318,6 +318,13 @@ class ReceiverTests(unittest.TestCase):
         self.assertEqual(arguments[arguments.index("--bind") + 1], "127.0.0.1")
         self.assertNotIn("0.0.0.0", arguments)
         self.assertFalse(any(SECRET in str(value) for value in arguments))
+        self.assertEqual(plist["Umask"], 0o77)
+        analytics_plist_path = (
+            ROOT / "mac_mini" / "launchd" / "xyz.buzz.home-context-analytics.plist.example"
+        )
+        with analytics_plist_path.open("rb") as stream:
+            analytics_plist = plistlib.load(stream)
+        self.assertEqual(analytics_plist["Umask"], 0o77)
         commands = (
             ROOT / "mac_mini" / "tailscale" / "serve.commands.example"
         ).read_text(encoding="utf-8")
