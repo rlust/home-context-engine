@@ -21,30 +21,24 @@ def export_ready(
     trigger_branch: str,
     *,
     observer_event_time: str | None,
-    observer_context_id: str | None = None,
     helper_last_reported: Mapping[str, str],
-    helper_context_ids: Mapping[str, str] | None = None,
-    observer_active: bool = False,
+    observer_active: bool | None,
 ) -> bool:
     """Return the exact fail-closed decision mirrored by the HA draft."""
 
     if trigger_branch == "feedback":
-        return not observer_active
+        return observer_active is False
     if (
         trigger_branch != "observer"
         or observer_event_time is None
-        or not observer_context_id
-        or helper_context_ids is None
+        or observer_active is not False
     ):
         return False
-    if set(helper_last_reported) != set(PREDICTION_HELPERS) or set(helper_context_ids) != set(
-        PREDICTION_HELPERS
-    ):
+    if set(helper_last_reported) != set(PREDICTION_HELPERS):
         return False
     event_time = _datetime(observer_event_time, "observer_event_time")
     return all(
         _datetime(helper_last_reported[entity_id], f"{entity_id}.last_reported") >= event_time
-        and helper_context_ids[entity_id] == observer_context_id
         for entity_id in PREDICTION_HELPERS
     )
 

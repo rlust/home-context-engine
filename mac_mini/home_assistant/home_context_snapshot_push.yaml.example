@@ -71,15 +71,12 @@ automation:
               - wait_template: >-
                   {{
                     states.input_select.home_context_mode.last_reported >= as_datetime(observer_event_time)
-                    and states.input_select.home_context_mode.context.id == observer_context_id
                     and states.input_select.home_current_activity.last_reported >= as_datetime(observer_event_time)
-                    and states.input_select.home_current_activity.context.id == observer_context_id
                     and states.input_number.home_context_confidence.last_reported >= as_datetime(observer_event_time)
-                    and states.input_number.home_context_confidence.context.id == observer_context_id
                     and states.input_text.home_context_summary.last_reported >= as_datetime(observer_event_time)
-                    and states.input_text.home_context_summary.context.id == observer_context_id
                     and states.input_text.home_next_likely_activity.last_reported >= as_datetime(observer_event_time)
-                    and states.input_text.home_next_likely_activity.context.id == observer_context_id
+                    and state_attr('automation.home_context_evening_observer', 'current') is not none
+                    and state_attr('automation.home_context_evening_observer', 'current') | int == 0
                   }}
                 timeout: "00:00:10"
                 continue_on_timeout: true
@@ -88,15 +85,12 @@ automation:
                     value_template: >-
                       {{
                         states.input_select.home_context_mode.last_reported >= as_datetime(observer_event_time)
-                        and states.input_select.home_context_mode.context.id == observer_context_id
                         and states.input_select.home_current_activity.last_reported >= as_datetime(observer_event_time)
-                        and states.input_select.home_current_activity.context.id == observer_context_id
                         and states.input_number.home_context_confidence.last_reported >= as_datetime(observer_event_time)
-                        and states.input_number.home_context_confidence.context.id == observer_context_id
                         and states.input_text.home_context_summary.last_reported >= as_datetime(observer_event_time)
-                        and states.input_text.home_context_summary.context.id == observer_context_id
                         and states.input_text.home_next_likely_activity.last_reported >= as_datetime(observer_event_time)
-                        and states.input_text.home_next_likely_activity.context.id == observer_context_id
+                        and state_attr('automation.home_context_evening_observer', 'current') is not none
+                        and state_attr('automation.home_context_evening_observer', 'current') | int == 0
                       }}
                 then: []
                 else:

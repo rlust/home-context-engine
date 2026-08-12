@@ -88,14 +88,15 @@ Observer-trigger coherence is fail closed. The draft records the
 `automation_triggered` event time and context ID, then waits at most ten seconds
 for all five Observer-written prediction helpers—mode, activity, confidence,
 summary, and next activity—to have `last_reported` at or after that event time
-and a state context ID equal to the captured Observer-run context. Only then may
-the common POST action run. Timeout writes a fixed warning and stops with an
-error before POST. The invariant assumes these five helpers are all written
-once, in sequence, by the reviewed Observer run and that HA propagates the
-automation-run context to each helper state write. Configuration validation and
-the first synthetic/live read-only proof must verify that context propagation;
-if it differs on the installed Core release, the draft fails closed and must be
-reviewed rather than weakened to timestamp-only evidence.
+and for the Observer automation's `current` attribute to be present and zero.
+Only then may the common POST action run. Timeout writes a fixed warning and
+stops with an error before POST. The coherence invariant is exact: the reviewed
+Observer remains the sole writer of all five helpers, every helper reports after
+the captured Observer event, and the Observer run has completed. Together those
+facts prove one complete run even when every value stays unchanged. HA may
+preserve older, mixed state contexts while advancing `last_reported`, so helper
+context equality is deliberately not required. The captured event context is
+retained only for diagnostic trace review and never gates export.
 
 Feedback-trigger exports wait one second for picker/counter settlement, then
 require the Observer automation's `current` attribute to be present and zero.

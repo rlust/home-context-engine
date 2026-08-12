@@ -133,38 +133,46 @@ class ReceiverTests(unittest.TestCase):
 
     def test_observer_coherence_gate_is_fail_closed_but_feedback_can_export(self) -> None:
         event_time = "2026-08-12T18:00:00Z"
-        context_id = "01K2GQJHCJ4V1J7RBZX3HNQGNV"
         complete = {entity_id: "2026-08-12T18:00:01Z" for entity_id in PREDICTION_HELPERS}
-        contexts = {entity_id: context_id for entity_id in PREDICTION_HELPERS}
         partial = dict(complete)
-        partial[PREDICTION_HELPERS[-1]] = "2026-08-12T17:59:59Z"
+        partial.pop(PREDICTION_HELPERS[-1])
+        stale = dict(complete)
+        stale[PREDICTION_HELPERS[-1]] = "2026-08-12T17:59:59Z"
         self.assertFalse(
             export_ready(
                 "observer",
                 observer_event_time=event_time,
-                observer_context_id=context_id,
                 helper_last_reported=partial,
-                helper_context_ids=contexts,
+                observer_active=False,
             )
         )
+        self.assertFalse(
+            export_ready(
+                "observer",
+                observer_event_time=event_time,
+                helper_last_reported=stale,
+                observer_active=False,
+            )
+        )
+        for observer_active in (True, None):
+            with self.subTest(observer_active=observer_active):
+                self.assertFalse(
+                    export_ready(
+                        "observer",
+                        observer_event_time=event_time,
+                        helper_last_reported=complete,
+                        observer_active=observer_active,
+                    )
+                )
+        # Live Newark preserves old/mixed state contexts for unchanged values.
+        # Contexts are intentionally absent from this gate; completion plus all
+        # five fresh last_reported cursors proves the reviewed sole-writer run.
         self.assertTrue(
             export_ready(
                 "observer",
                 observer_event_time=event_time,
-                observer_context_id=context_id,
                 helper_last_reported=complete,
-                helper_context_ids=contexts,
-            )
-        )
-        wrong_context = dict(contexts)
-        wrong_context[PREDICTION_HELPERS[-1]] = "01K2GQK57TSZ5HAXKZB4M7RJTX"
-        self.assertFalse(
-            export_ready(
-                "observer",
-                observer_event_time=event_time,
-                observer_context_id=context_id,
-                helper_last_reported=complete,
-                helper_context_ids=wrong_context,
+                observer_active=False,
             )
         )
         self.assertTrue(
@@ -181,6 +189,14 @@ class ReceiverTests(unittest.TestCase):
                 observer_event_time=None,
                 helper_last_reported={},
                 observer_active=True,
+            )
+        )
+        self.assertFalse(
+            export_ready(
+                "feedback",
+                observer_event_time=None,
+                helper_last_reported={},
+                observer_active=None,
             )
         )
 
@@ -205,7 +221,10 @@ class ReceiverTests(unittest.TestCase):
             self.assertIn(required, draft)
         for entity_id in PREDICTION_HELPERS:
             self.assertGreaterEqual(draft.count(f"states.{entity_id}.last_reported"), 3)
-            self.assertGreaterEqual(draft.count(f"states.{entity_id}.context.id"), 2)
+        self.assertNotIn(".context.id == observer_context_id", draft)
+        self.assertGreaterEqual(
+            draft.count("state_attr('automation.home_context_evening_observer', 'current')"), 4
+        )
         for forbidden in ("light.turn_on", "lock.unlock", "ai_actions_enabled.turn_on"):
             self.assertNotIn(forbidden, draft)
 
