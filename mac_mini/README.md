@@ -13,17 +13,24 @@ approved Newark states into the Phase 3.2 JSONL contract, and true-appends the
 records locally. It contains no HA URL/token, REST/WebSocket/MCP client,
 subprocess fetch, network import, or service-call capability.
 
-The unresolved next decision is the read-only snapshot transport: a later,
-separately reviewed component must obtain these exact entities from Newark and
-write the complete local snapshot file. This phase does not choose REST versus
-WebSocket/MCP, create a credential, or authorize a connection. Building that
-transport and deploying it are separate approval gates.
+Phase 3.4 adds the selected **HA-originated push receiver**. It is a stdlib-only
+HTTP server that binds explicitly to `127.0.0.1`, accepts one authenticated POST
+path, and passes only a complete validated snapshot to the same normalizer. In
+the future production shape, tailnet-only HTTPS terminates at Tailscale Serve
+and Serve proxies to this loopback listener. The receiver never stores an HA
+URL, HA token, MCP path, or capability to call Home Assistant or a device.
+
+The transport architecture is selected and implemented only as non-live code:
+HA-originated POST over tailnet-only HTTPS to Tailscale Serve, then loopback
+proxying to this receiver. Credential generation, HA configuration, Tailscale
+Serve configuration, LaunchAgent installation, and any live connection remain
+separate owner-authorized gates.
 
 ## Safety boundary
 
 - Home Assistant remains the real-time observer and controller.
-- `input_boolean.ai_actions_enabled` remains OFF. This package cannot read or
-  change it.
+- `input_boolean.ai_actions_enabled` remains OFF. The normalizer verifies the
+  supplied whitelisted state is OFF; the package cannot query or change it.
 - The accepted input is a strict whitelist. Service events and unknown fields
   are rejected. One-shot `ingest` is atomic; persistent `ingest-continuous`
   checkpoints each complete line and quarantines a bad line without blocking
@@ -37,10 +44,84 @@ transport and deploying it are separate approval gates.
   report files are mode `0600`.
 - Reporting opens SQLite in read-only/query-only mode. Hermes receives only the
   report, never the raw database or JSONL feed.
+- The receiver refuses `0.0.0.0`, LAN addresses, hostnames, IPv6, and any bind
+  other than explicit IPv4 loopback `127.0.0.1`. Tailscale Serve is the only
+  proposed TLS ingress; Funnel is forbidden.
 
-The live HA adapter is intentionally **not part of this commit**. Adding a live
-read-only event source requires Bumble review plus Randy's explicit credential
-and access authorization. An adapter must map only these live helpers:
+## Phase 3.4 receiver contract (built, not deployed)
+
+The only accepted route is `POST /v1/home-context/snapshot`. Every other path
+returns 404 and every other method returns 405. Requests require:
+
+- `Content-Type: application/json`;
+- an exact `Content-Length` from 1 through 65,536 bytes;
+- `X-Home-Context-Secret`, compared in constant time against a non-empty secret
+  injected through the receiver process environment;
+- a complete snapshot whose `snapshot_at` is within 10 minutes of receiver time;
+- the existing exact 22-entity snapshot and per-entity field allowlists.
+
+The secret is never written to the replay database, JSONL, normalizer state, or
+logs, and responses never echo request values. Read timeout is five seconds.
+Only one normalization transaction can run at a time; concurrent work receives
+503 backpressure. Exact-body SHA-256 replay protection returns a safe duplicate
+response after snapshot validation and skew enforcement. Fingerprints older
+than twice the skew window are pruned because they cannot accompany a valid
+request. Normalizer no-transition returns a separate duplicate/no-transition
+response. A created record returns 202 accepted, including only counts/booleans;
+an accepted feedback audit failure sets `audit_visible: true`. Authentication,
+shape, timestamp, method, path, media-type, size, timeout, and backpressure
+failures use fixed reason codes without private data.
+
+The review-only HA draft is
+`home_assistant/home_context_snapshot_push.yaml.example`. It renders exactly the
+22 approved entities with only `state`/`last_changed`/`last_reported`, uses
+`verify_ssl: true`, a five-second timeout, `!secret` for the dedicated receiver
+header, and `continue_on_error`. It triggers after the reviewed Observer or a
+feedback button event and contains no device action. Installing `rest_command`
+requires configuration validation, a fresh backup, explicit owner approval,
+and an HA restart; this repository does none of those things.
+
+The review-only receiver LaunchAgent is
+`launchd/xyz.buzz.home-context-receiver.plist.example`. Its first program
+argument is deliberately an owner-reviewed secret-injection wrapper placeholder;
+the secret must not be pasted into the plist. The review-only Tailscale commands
+are in `tailscale/serve.commands.example`. Do not enable Funnel.
+
+### Receiver responses
+
+| HTTP | Status | Meaning |
+|---:|---|---|
+| 202 | `accepted` | One or more normalized records were appended and fsynced |
+| 200 | `duplicate` | Exact replay or valid snapshot with no semantic transition |
+| 4xx | `rejected` | Fixed authentication/request/snapshot rejection; no values echoed |
+| 408/503 | `unavailable` | Read timeout or local single-writer backpressure |
+
+### Shutdown and crash runbook
+
+SIGTERM and Ctrl-C stop the HTTP loop, close the listener, and close the replay
+database. Stop the receiver before the collector during planned maintenance;
+HA remains unaffected because its draft action is `continue_on_error`.
+
+There remains a narrow accepted Phase 3.3 crash window: JSONL is fsynced before
+normalizer state is saved. An identical retry is harmless because opaque event
+IDs deduplicate downstream. If the first retry is instead a different later
+snapshot, the stale pre-crash state can derive a different transition boundary
+or associate a press to the wrong adjacent episode. Do not delete data. Preserve
+the JSONL/state files and review the adjacent events before accepting their
+labels; this rare case is an audit/manual-review condition.
+
+A true partial final JSONL write intentionally halts future appends. Safe repair
+is manual and local: stop receiver and collector; make a permission-preserving
+backup; confirm the file does not end in a newline; inspect only the final local
+fragment; remove exactly that incomplete fragment in a local editor; restore one
+final newline; validate every remaining line as JSON; then restart and review
+the collector replay/duplicate counts. Do not use an automatic truncate command,
+do not print the private file into chat/logs, and do not delete the backup until
+the repaired stream and report are verified.
+
+The HA emitter is a credential-free review draft only. Making it live requires
+Bumble review plus Randy's explicit credential, restart, and access approval.
+It may map only these live helpers:
 
 | Normalized field | Approved Newark source |
 |---|---|

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>xyz.buzz.home-context-receiver</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>REPLACE_WITH_OWNER_REVIEWED_SECRET_INJECTION_WRAPPER</string>
+    <string>receive</string>
+    <string>--bind</string>
+    <string>127.0.0.1</string>
+    <string>--port</string>
+    <string>8765</string>
+    <string>--replay-database</string>
+    <string>REPLACE_WITH_LOCAL_PRIVATE_DIRECTORY/receiver-replay.sqlite3</string>
+    <string>--state-database</string>
+    <string>REPLACE_WITH_LOCAL_PRIVATE_DIRECTORY/normalizer.sqlite3</string>
+    <string>--output</string>
+    <string>REPLACE_WITH_LOCAL_PRIVATE_DIRECTORY/normalized.jsonl</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>REPLACE_WITH_REPOSITORY_WORKTREE</string>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <dict>
+    <key>SuccessfulExit</key>
+    <false/>
+  </dict>
+  <key>ProcessType</key>
+  <string>Background</string>
+  <key>StandardOutPath</key>
+  <string>REPLACE_WITH_LOCAL_LOG_DIRECTORY/receiver.stdout.log</string>
+  <key>StandardErrorPath</key>
+  <string>REPLACE_WITH_LOCAL_LOG_DIRECTORY/receiver.stderr.log</string>
+</dict>
+</plist>

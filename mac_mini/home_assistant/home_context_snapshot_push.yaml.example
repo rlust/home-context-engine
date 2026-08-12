@@ -1,0 +1,65 @@
+# REVIEW-ONLY DRAFT. Do not install without config validation, backup, owner approval,
+# and the required Home Assistant restart for rest_command configuration.
+rest_command:
+  home_context_post_snapshot:
+    url: "https://REPLACE_WITH_MAC_MINI_TAILNET_NAME/v1/home-context/snapshot"
+    method: POST
+    headers:
+      X-Home-Context-Secret: !secret home_context_receiver_secret
+    content_type: "application/json"
+    verify_ssl: true
+    timeout: 5
+    payload: >-
+      {{ {
+        'snapshot_at': now().isoformat(),
+        'observer_config': {
+          'automation_id': 'automation.home_context_evening_observer',
+          'config_sha256': 'REPLACE_WITH_REVIEWED_64_CHAR_LOWERCASE_SHA256',
+          'version': 'REPLACE_WITH_REVIEWED_64_CHAR_LOWERCASE_VERSION_DIGEST'
+        },
+        'entities': {
+          'input_select.home_context_mode': {'state': states.input_select.home_context_mode.state, 'last_changed': states.input_select.home_context_mode.last_changed.isoformat(), 'last_reported': states.input_select.home_context_mode.last_reported.isoformat()},
+          'input_select.home_current_activity': {'state': states.input_select.home_current_activity.state, 'last_changed': states.input_select.home_current_activity.last_changed.isoformat(), 'last_reported': states.input_select.home_current_activity.last_reported.isoformat()},
+          'input_number.home_context_confidence': {'state': states.input_number.home_context_confidence.state, 'last_changed': states.input_number.home_context_confidence.last_changed.isoformat(), 'last_reported': states.input_number.home_context_confidence.last_reported.isoformat()},
+          'sensor.home_active_room': {'state': states.sensor.home_active_room.state, 'last_changed': states.sensor.home_active_room.last_changed.isoformat(), 'last_reported': states.sensor.home_active_room.last_reported.isoformat()},
+          'input_text.home_context_summary': {'state': states.input_text.home_context_summary.state, 'last_changed': states.input_text.home_context_summary.last_changed.isoformat(), 'last_reported': states.input_text.home_context_summary.last_reported.isoformat()},
+          'input_text.home_next_likely_activity': {'state': states.input_text.home_next_likely_activity.state, 'last_changed': states.input_text.home_next_likely_activity.last_changed.isoformat(), 'last_reported': states.input_text.home_next_likely_activity.last_reported.isoformat()},
+          'input_boolean.ai_actions_enabled': {'state': states.input_boolean.ai_actions_enabled.state, 'last_changed': states.input_boolean.ai_actions_enabled.last_changed.isoformat(), 'last_reported': states.input_boolean.ai_actions_enabled.last_reported.isoformat()},
+          'sensor.home_context_observer_age': {'state': states.sensor.home_context_observer_age.state, 'last_changed': states.sensor.home_context_observer_age.last_changed.isoformat(), 'last_reported': states.sensor.home_context_observer_age.last_reported.isoformat()},
+          'binary_sensor.home_context_engine_stalled': {'state': states.binary_sensor.home_context_engine_stalled.state, 'last_changed': states.binary_sensor.home_context_engine_stalled.last_changed.isoformat(), 'last_reported': states.binary_sensor.home_context_engine_stalled.last_reported.isoformat()},
+          'binary_sensor.residents_home': {'state': states.binary_sensor.residents_home.state, 'last_changed': states.binary_sensor.residents_home.last_changed.isoformat(), 'last_reported': states.binary_sensor.residents_home.last_reported.isoformat()},
+          'binary_sensor.home_room_presence': {'state': states.binary_sensor.home_room_presence.state, 'last_changed': states.binary_sensor.home_room_presence.last_changed.isoformat(), 'last_reported': states.binary_sensor.home_room_presence.last_reported.isoformat()},
+          'binary_sensor.tv_active': {'state': states.binary_sensor.tv_active.state, 'last_changed': states.binary_sensor.tv_active.last_changed.isoformat(), 'last_reported': states.binary_sensor.tv_active.last_reported.isoformat()},
+          'binary_sensor.music_playing': {'state': states.binary_sensor.music_playing.state, 'last_changed': states.binary_sensor.music_playing.last_changed.isoformat(), 'last_reported': states.binary_sensor.music_playing.last_reported.isoformat()},
+          'binary_sensor.exterior_door_open': {'state': states.binary_sensor.exterior_door_open.state, 'last_changed': states.binary_sensor.exterior_door_open.last_changed.isoformat(), 'last_reported': states.binary_sensor.exterior_door_open.last_reported.isoformat()},
+          'binary_sensor.recent_arrival': {'state': states.binary_sensor.recent_arrival.state, 'last_changed': states.binary_sensor.recent_arrival.last_changed.isoformat(), 'last_reported': states.binary_sensor.recent_arrival.last_reported.isoformat()},
+          'input_button.home_context_confirm': {'state': states.input_button.home_context_confirm.state, 'last_changed': states.input_button.home_context_confirm.last_changed.isoformat(), 'last_reported': states.input_button.home_context_confirm.last_reported.isoformat()},
+          'input_button.home_context_mark_wrong': {'state': states.input_button.home_context_mark_wrong.state, 'last_changed': states.input_button.home_context_mark_wrong.last_changed.isoformat(), 'last_reported': states.input_button.home_context_mark_wrong.last_reported.isoformat()},
+          'input_button.home_context_mark_unsure': {'state': states.input_button.home_context_mark_unsure.state, 'last_changed': states.input_button.home_context_mark_unsure.last_changed.isoformat(), 'last_reported': states.input_button.home_context_mark_unsure.last_reported.isoformat()},
+          'input_select.home_context_corrected_activity': {'state': states.input_select.home_context_corrected_activity.state, 'last_changed': states.input_select.home_context_corrected_activity.last_changed.isoformat(), 'last_reported': states.input_select.home_context_corrected_activity.last_reported.isoformat()},
+          'counter.home_context_confirmations': {'state': states.counter.home_context_confirmations.state, 'last_changed': states.counter.home_context_confirmations.last_changed.isoformat(), 'last_reported': states.counter.home_context_confirmations.last_reported.isoformat()},
+          'counter.home_context_corrections': {'state': states.counter.home_context_corrections.state, 'last_changed': states.counter.home_context_corrections.last_changed.isoformat(), 'last_reported': states.counter.home_context_corrections.last_reported.isoformat()},
+          'counter.home_context_unsure': {'state': states.counter.home_context_unsure.state, 'last_changed': states.counter.home_context_unsure.last_changed.isoformat(), 'last_reported': states.counter.home_context_unsure.last_reported.isoformat()}
+        }
+      } | tojson }}
+
+automation:
+  - id: home_context_snapshot_push_draft
+    alias: Home Context Snapshot Push (DRAFT)
+    description: "Observe-only export after Observer runs or a feedback button changes. No device actions."
+    triggers:
+      - trigger: event
+        event_type: automation_triggered
+        event_data:
+          entity_id: automation.home_context_evening_observer
+      - trigger: state
+        entity_id:
+          - input_button.home_context_confirm
+          - input_button.home_context_mark_wrong
+          - input_button.home_context_mark_unsure
+    actions:
+      - delay: "00:00:01"
+      - continue_on_error: true
+        action: rest_command.home_context_post_snapshot
+    mode: queued
+    max: 3

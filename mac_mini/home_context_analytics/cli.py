@@ -5,8 +5,10 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import signal
 import sys
 import tempfile
+import threading
 from datetime import datetime
 from pathlib import Path
 
@@ -14,6 +16,7 @@ from .collector import collect_continuous_file, collect_jsonl
 from .model import ValidationError, parse_timestamp
 from .normalizer import NormalizerState, SnapshotError, normalize_and_append
 from .report import build_report, report_json, report_markdown
+from .receiver import ReceiverError, SnapshotReceiver, build_server
 
 
 def _datetime(value: str) -> datetime:
@@ -52,6 +55,16 @@ def build_parser() -> argparse.ArgumentParser:
     normalize.add_argument("--state-database", required=True, type=Path)
     normalize.add_argument("--output", required=True, type=Path)
     normalize.add_argument("--output-mode", choices=("append", "atomic-replace"), default="append")
+
+    receiver = commands.add_parser(
+        "receive", help="run the loopback-only authenticated snapshot receiver"
+    )
+    receiver.add_argument("--bind", default="127.0.0.1")
+    receiver.add_argument("--port", type=int, default=8765)
+    receiver.add_argument("--secret-env", default="HOME_CONTEXT_RECEIVER_SECRET")
+    receiver.add_argument("--replay-database", required=True, type=Path)
+    receiver.add_argument("--state-database", required=True, type=Path)
+    receiver.add_argument("--output", required=True, type=Path)
 
     report = commands.add_parser("report", help="produce deterministic local aggregates")
     report.add_argument("--database", required=True, type=Path)
@@ -128,6 +141,31 @@ def main(argv: list[str] | None = None) -> int:
             sys.stdout.write(json.dumps(result, sort_keys=True) + "\n")
             return 0
 
+        if args.command == "receive":
+            secret = os.environ.get(args.secret_env, "")
+            receiver_service = SnapshotReceiver(
+                secret=secret,
+                replay_database=args.replay_database,
+                normalizer_database=args.state_database,
+                output=args.output,
+            )
+            server = build_server(args.bind, args.port, receiver_service)
+            previous_term = signal.getsignal(signal.SIGTERM)
+
+            def stop_server(_signum: int, _frame: object) -> None:
+                threading.Thread(target=server.shutdown, daemon=True).start()
+
+            signal.signal(signal.SIGTERM, stop_server)
+            try:
+                server.serve_forever(poll_interval=0.25)
+            except KeyboardInterrupt:
+                pass
+            finally:
+                signal.signal(signal.SIGTERM, previous_term)
+                server.server_close()
+                receiver_service.close()
+            return 0
+
         report = build_report(args.database, as_of=args.as_of, window_days=args.window_days)
         content = report_json(report) if args.format == "json" else report_markdown(report)
         if args.output:
@@ -135,7 +173,7 @@ def main(argv: list[str] | None = None) -> int:
         else:
             sys.stdout.write(content)
         return 0
-    except (FileNotFoundError, json.JSONDecodeError, OSError, RuntimeError, SnapshotError, ValidationError, ValueError) as exc:
+    except (FileNotFoundError, json.JSONDecodeError, OSError, ReceiverError, RuntimeError, SnapshotError, ValidationError, ValueError) as exc:
         sys.stderr.write(f"error: {exc}\n")
         return 2
 

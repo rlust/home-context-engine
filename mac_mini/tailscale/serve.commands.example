@@ -1,0 +1,9 @@
+# REVIEW ONLY — DO NOT RUN UNTIL OWNER APPROVAL.
+# Receiver must already be bound to 127.0.0.1. Never enable Funnel.
+tailscale serve --bg --https=443 http://127.0.0.1:8765
+
+# Read back the tailnet-only Serve configuration.
+tailscale serve status
+
+# Roll back only this device's Serve configuration.
+tailscale serve reset

@@ -1,0 +1,329 @@
+from __future__ import annotations
+
+import ast
+import http.client
+import json
+import plistlib
+import re
+import socket
+import tempfile
+import threading
+import unittest
+from datetime import datetime, timezone
+from pathlib import Path
+from unittest.mock import patch
+
+import mac_mini.home_context_analytics.receiver as receiver_module
+
+from mac_mini.home_context_analytics.collector import collect_continuous_file
+from mac_mini.home_context_analytics.normalizer import REQUIRED_ENTITIES
+from mac_mini.home_context_analytics.receiver import (
+    MAX_BODY_BYTES,
+    RECEIVER_PATH,
+    SECRET_HEADER,
+    ReceiverError,
+    SnapshotReceiver,
+    build_server,
+    require_loopback_bind,
+)
+from mac_mini.home_context_analytics.report import build_report
+
+
+ROOT = Path(__file__).resolve().parents[2]
+FIXTURE = ROOT / "mac_mini" / "fixtures" / "newark_snapshot_normal.json"
+NOW = datetime(2026, 8, 12, 18, tzinfo=timezone.utc)
+SECRET = "synthetic-test-secret-not-a-credential"
+
+
+def snapshot_bytes(snapshot: dict[str, object] | None = None) -> bytes:
+    payload = snapshot or json.loads(FIXTURE.read_text(encoding="utf-8"))
+    return json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+
+
+class ReceiverHarness:
+    def __init__(self, root: Path):
+        self.root = root
+        self.receiver = SnapshotReceiver(
+            secret=SECRET,
+            replay_database=root / "replay.sqlite3",
+            normalizer_database=root / "normalizer.sqlite3",
+            output=root / "events.jsonl",
+            now=lambda: NOW,
+        )
+        self.server = build_server("127.0.0.1", 0, self.receiver)
+        self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
+        self.thread.start()
+
+    def close(self) -> None:
+        self.server.shutdown()
+        self.server.server_close()
+        self.thread.join(timeout=2)
+        self.receiver.close()
+
+    def request(
+        self,
+        *,
+        method: str = "POST",
+        path: str = RECEIVER_PATH,
+        body: bytes | None = None,
+        secret: str | None = SECRET,
+        content_type: str = "application/json",
+        declared_length: int | None = None,
+    ) -> tuple[int, dict[str, object]]:
+        connection = http.client.HTTPConnection("127.0.0.1", self.server.server_port, timeout=2)
+        headers = {"Content-Type": content_type}
+        if secret is not None:
+            headers[SECRET_HEADER] = secret
+        if declared_length is not None:
+            headers["Content-Length"] = str(declared_length)
+        connection.request(method, path, body=body, headers=headers)
+        response = connection.getresponse()
+        payload = json.loads(response.read())
+        connection.close()
+        return response.status, payload
+
+
+class ReceiverTests(unittest.TestCase):
+    def test_receiver_has_no_ha_mcp_subprocess_or_service_call_capability(self) -> None:
+        source_path = ROOT / "mac_mini" / "home_context_analytics" / "receiver.py"
+        source = source_path.read_text(encoding="utf-8")
+        tree = ast.parse(source)
+        imported = set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                imported.update(alias.name.split(".")[0] for alias in node.names)
+            elif isinstance(node, ast.ImportFrom) and node.module:
+                imported.add(node.module.split(".")[0])
+        self.assertTrue(imported.isdisjoint({"requests", "subprocess", "websocket", "aiohttp"}))
+        for forbidden in ("ha_call_service", "mcp__", "light.turn_on", "lock.unlock"):
+            self.assertNotIn(forbidden, source)
+
+    def test_loopback_bind_enforced(self) -> None:
+        self.assertEqual(require_loopback_bind("127.0.0.1"), "127.0.0.1")
+        for host in ("::1", "0.0.0.0", "192.0.2.1", "localhost", ""):
+            with self.subTest(host=host), self.assertRaises(ReceiverError):
+                require_loopback_bind(host)
+
+    def test_receiver_storage_paths_must_be_distinct(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            shared = Path(temporary_directory) / "shared"
+            with self.assertRaisesRegex(ReceiverError, "distinct"):
+                SnapshotReceiver(
+                    secret=SECRET,
+                    replay_database=shared,
+                    normalizer_database=shared,
+                    output=Path(temporary_directory) / "events.jsonl",
+                )
+
+    def test_ha_draft_renders_only_allowlist_and_remains_observe_only(self) -> None:
+        draft = (
+            ROOT / "mac_mini" / "home_assistant" / "home_context_snapshot_push.yaml.example"
+        ).read_text(encoding="utf-8")
+        rendered_entities = set(re.findall(r"^\s+'([^']+)': \{'state':", draft, re.MULTILINE))
+        self.assertEqual(rendered_entities, set(REQUIRED_ENTITIES))
+        for required in (
+            "verify_ssl: true",
+            "timeout: 5",
+            "!secret home_context_receiver_secret",
+            "continue_on_error: true",
+        ):
+            self.assertIn(required, draft)
+        for forbidden in ("light.turn_on", "lock.unlock", "ai_actions_enabled.turn_on"):
+            self.assertNotIn(forbidden, draft)
+
+    def test_launch_and_serve_templates_keep_receiver_private(self) -> None:
+        plist_path = (
+            ROOT / "mac_mini" / "launchd" / "xyz.buzz.home-context-receiver.plist.example"
+        )
+        with plist_path.open("rb") as stream:
+            plist = plistlib.load(stream)
+        arguments = plist["ProgramArguments"]
+        self.assertEqual(arguments[arguments.index("--bind") + 1], "127.0.0.1")
+        self.assertNotIn("0.0.0.0", arguments)
+        self.assertFalse(any(SECRET in str(value) for value in arguments))
+        commands = (
+            ROOT / "mac_mini" / "tailscale" / "serve.commands.example"
+        ).read_text(encoding="utf-8")
+        executable_lines = [
+            line.strip() for line in commands.splitlines() if line.strip() and not line.startswith("#")
+        ]
+        self.assertTrue(any("http://127.0.0.1:8765" in line for line in executable_lines))
+        self.assertFalse(any("funnel" in line.lower() for line in executable_lines))
+
+    def test_incomplete_body_times_out_without_echo(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory, patch.object(
+            receiver_module, "READ_TIMEOUT_SECONDS", 0.05
+        ):
+            harness = ReceiverHarness(Path(temporary_directory))
+            try:
+                client = socket.create_connection(("127.0.0.1", harness.server.server_port), timeout=1)
+                client.sendall(
+                    (
+                        f"POST {RECEIVER_PATH} HTTP/1.1\r\n"
+                        "Host: 127.0.0.1\r\n"
+                        "Content-Type: application/json\r\n"
+                        f"{SECRET_HEADER}: {SECRET}\r\n"
+                        "Content-Length: 10\r\n\r\n"
+                        "{}"
+                    ).encode()
+                )
+                chunks = []
+                while True:
+                    chunk = client.recv(4096)
+                    if not chunk:
+                        break
+                    chunks.append(chunk)
+                response = b"".join(chunks)
+                client.close()
+            finally:
+                harness.close()
+        self.assertIn(b"408 Request Timeout", response)
+        self.assertIn(b'"status":"unavailable"', response)
+        self.assertNotIn(SECRET.encode(), response)
+
+    def test_authenticated_accept_duplicate_and_no_transition(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            harness = ReceiverHarness(Path(temporary_directory))
+            try:
+                first_status, first = harness.request(body=snapshot_bytes())
+                replay_status, replay = harness.request(body=snapshot_bytes())
+                refreshed = json.loads(FIXTURE.read_text(encoding="utf-8"))
+                refreshed["snapshot_at"] = "2026-08-12T18:05:00Z"
+                refreshed["entities"]["sensor.home_context_observer_age"]["state"] = "1"
+                refreshed["entities"]["sensor.home_context_observer_age"]["last_changed"] = "2026-08-12T18:05:00Z"
+                refreshed["entities"]["sensor.home_context_observer_age"]["last_reported"] = "2026-08-12T18:05:00Z"
+                no_change_status, no_change = harness.request(body=snapshot_bytes(refreshed))
+            finally:
+                harness.close()
+        self.assertEqual((first_status, first["status"]), (202, "accepted"))
+        self.assertEqual((replay_status, replay), (200, {"status": "duplicate", "reason": "replay"}))
+        self.assertEqual(
+            (no_change_status, no_change),
+            (200, {"status": "duplicate", "reason": "no_transition"}),
+        )
+
+    def test_auth_method_path_content_type_and_size_rejections_are_value_free(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            harness = ReceiverHarness(Path(temporary_directory))
+            try:
+                cases = (
+                    harness.request(body=snapshot_bytes(), secret=None),
+                    harness.request(method="GET", body=None),
+                    harness.request(path="/wrong", body=snapshot_bytes()),
+                    harness.request(body=snapshot_bytes(), content_type="text/plain"),
+                    harness.request(body=b"{}", declared_length=MAX_BODY_BYTES + 1),
+                )
+            finally:
+                harness.close()
+        self.assertEqual([status for status, _ in cases], [401, 405, 404, 415, 413])
+        rendered = json.dumps(cases)
+        self.assertNotIn(SECRET, rendered)
+        self.assertNotIn("Working", rendered)
+
+    def test_stale_and_allowlist_rejections_are_generic(self) -> None:
+        stale = json.loads(FIXTURE.read_text(encoding="utf-8"))
+        stale["snapshot_at"] = "2026-08-12T17:49:59Z"
+        private = json.loads(FIXTURE.read_text(encoding="utf-8"))
+        private["entities"]["person.synthetic"] = {
+            "state": "home",
+            "last_changed": "2026-08-12T18:00:00Z",
+            "last_reported": "2026-08-12T18:00:00Z",
+        }
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            harness = ReceiverHarness(Path(temporary_directory))
+            try:
+                responses = (
+                    harness.request(body=snapshot_bytes(stale)),
+                    harness.request(body=snapshot_bytes(private)),
+                )
+            finally:
+                harness.close()
+        for status, payload in responses:
+            self.assertEqual(status, 422)
+            self.assertEqual(payload, {"status": "rejected", "reason": "invalid_snapshot"})
+
+    def test_backpressure_is_visible(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            receiver = SnapshotReceiver(
+                secret=SECRET,
+                replay_database=Path(temporary_directory) / "replay.sqlite3",
+                normalizer_database=Path(temporary_directory) / "state.sqlite3",
+                output=Path(temporary_directory) / "events.jsonl",
+                now=lambda: NOW,
+            )
+            receiver._request_lock.acquire()
+            try:
+                code, payload = receiver.receive(supplied_secret=SECRET, body=snapshot_bytes())
+            finally:
+                receiver._request_lock.release()
+                receiver.close()
+        self.assertEqual((code, payload), (503, {"status": "unavailable", "reason": "backpressure"}))
+
+    def test_feedback_audit_failure_is_accepted_but_visible(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            receiver = SnapshotReceiver(
+                secret=SECRET,
+                replay_database=root / "replay.sqlite3",
+                normalizer_database=root / "state.sqlite3",
+                output=root / "events.jsonl",
+                now=lambda: NOW,
+            )
+            try:
+                first_code, _first = receiver.receive(
+                    supplied_secret=SECRET, body=snapshot_bytes()
+                )
+                wrong = json.loads(FIXTURE.read_text(encoding="utf-8"))
+                wrong["snapshot_at"] = "2026-08-12T18:05:00Z"
+                wrong_button = wrong["entities"]["input_button.home_context_mark_wrong"]
+                wrong_button["state"] = "2026-08-12T18:04:00Z"
+                wrong_button["last_changed"] = "2026-08-12T18:04:00Z"
+                wrong_button["last_reported"] = "2026-08-12T18:04:00Z"
+                wrong["entities"]["counter.home_context_corrections"]["state"] = "1"
+                code, payload = receiver.receive(
+                    supplied_secret=SECRET, body=snapshot_bytes(wrong)
+                )
+            finally:
+                receiver.close()
+        self.assertEqual(first_code, 202)
+        self.assertEqual(code, 202)
+        self.assertEqual(payload["feedback_created"], 1)
+        self.assertTrue(payload["audit_visible"])
+
+    def test_loopback_socket_end_to_end_receiver_normalizer_ingest_report_and_shutdown(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            harness = ReceiverHarness(root)
+            original_create_connection = socket.create_connection
+
+            def loopback_only(address, *args, **kwargs):
+                self.assertEqual(address[0], "127.0.0.1")
+                return original_create_connection(address, *args, **kwargs)
+
+            try:
+                with patch("socket.create_connection", side_effect=loopback_only):
+                    status, payload = harness.request(body=snapshot_bytes())
+            finally:
+                harness.close()
+            self.assertFalse(harness.thread.is_alive())
+            counts = collect_continuous_file(
+                root / "events.jsonl", root / "analytics.sqlite3", as_of=NOW
+            )
+            report = build_report(root / "analytics.sqlite3", as_of=NOW)
+            self.assertEqual(status, 202)
+            self.assertEqual(payload["status"], "accepted")
+            self.assertEqual(counts["episodes_inserted"], 1)
+            self.assertEqual(report["episodes"], 1)
+            self.assertFalse(report["privacy"]["network_used"])
+            for path in (
+                root / "replay.sqlite3",
+                root / "normalizer.sqlite3",
+                root / "events.jsonl",
+                root / "analytics.sqlite3",
+            ):
+                self.assertEqual(path.stat().st_mode & 0o777, 0o600)
+            self.assertNotIn(SECRET.encode(), (root / "replay.sqlite3").read_bytes())
+
+
+if __name__ == "__main__":
+    unittest.main()

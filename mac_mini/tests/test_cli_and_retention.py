@@ -21,11 +21,11 @@ FIXTURE = ROOT / "mac_mini" / "fixtures" / "synthetic_events.jsonl"
 
 
 class CliAndRetentionTests(unittest.TestCase):
-    def test_cli_exposes_only_local_ingest_and_report_commands(self) -> None:
+    def test_cli_exposes_only_bounded_local_commands(self) -> None:
         parser = build_parser()
         choices = next(action for action in parser._actions if action.dest == "command").choices
         self.assertEqual(
-            set(choices), {"ingest", "ingest-continuous", "normalize-snapshot", "report"}
+            set(choices), {"ingest", "ingest-continuous", "normalize-snapshot", "receive", "report"}
         )
         args = parser.parse_args(["ingest", "--input", "events.jsonl", "--database", "pilot.sqlite3"])
         self.assertEqual(args.retention_days, 45)
