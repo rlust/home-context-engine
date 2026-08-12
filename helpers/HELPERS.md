@@ -22,7 +22,7 @@ flaky sensor cannot pin a room occupied.
 
 | Room helper | Kind | Source sensors (summarized) |
 |---|---|---|
-| `binary_sensor.family_room_occupied` | template | Aqara FP2 zones 1 + 3 + Lumi aq2 occupancy |
+| `binary_sensor.family_room_occupied` | template | Aqara FP2 zones 1 + 3 + Lumi aq2 occupancy + **Aqara FP300** mmWave presence & PIR (added 08-12 for still-person coverage). Not included: eWeLink SNZB-03P (= the "Sonoff Zigbee motion" sensor) — flaky, drops offline, no area assigned. |
 | `binary_sensor.kitchen_occupied` | template | kitchen motion group + kitchen occupancy group + FP2 zone 2 |
 | `binary_sensor.office_occupied` | template | 3 ESPHome presence sensors |
 | `binary_sensor.foyer_occupied` | template | ESPHome presence sensor |
