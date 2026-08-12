@@ -217,6 +217,7 @@ class ReceiverTests(unittest.TestCase):
         for required in (
             "verify_ssl: true",
             "timeout: 5",
+            ":9443/v1/home-context/snapshot",
             "!secret home_context_receiver_secret",
             "continue_on_error: true",
             "observer_event_time",
@@ -230,6 +231,7 @@ class ReceiverTests(unittest.TestCase):
             f"mode {REVIEWED_OBSERVER_MODE}",
         ):
             self.assertIn(required, draft)
+        self.assertNotIn(":8443/", draft)
         self.assertIn(REVIEWED_OBSERVER_MODE, NON_OVERLAPPING_OBSERVER_MODES)
         for entity_id in PREDICTION_HELPERS:
             self.assertGreaterEqual(draft.count(f"states.{entity_id}.last_reported"), 3)
@@ -323,9 +325,9 @@ class ReceiverTests(unittest.TestCase):
             line.strip() for line in commands.splitlines() if line.strip() and not line.startswith("#")
         ]
         self.assertTrue(any("http://127.0.0.1:8765" in line for line in executable_lines))
-        self.assertIn("tailscale serve --https=8443 off", executable_lines)
+        self.assertIn("tailscale serve --https=9443 off", executable_lines)
         self.assertGreater(
-            executable_lines.index("tailscale serve --bg --https=8443 http://127.0.0.1:8765"),
+            executable_lines.index("tailscale serve --bg --https=9443 http://127.0.0.1:8765"),
             executable_lines.index(
                 "tailscale serve status --json > REPLACE_WITH_PRIVATE_REVIEW_DIRECTORY/serve-before.json"
             ),
@@ -340,7 +342,14 @@ class ReceiverTests(unittest.TestCase):
             )
         )
         off_commands = [line for line in executable_lines if re.search(r"(?:^|\s)off(?:\s|$)", line)]
-        self.assertEqual(off_commands, ["tailscale serve --https=8443 off"])
+        self.assertEqual(off_commands, ["tailscale serve --https=9443 off"])
+        self.assertFalse(any("--https=8443" in line for line in executable_lines))
+        self.assertTrue(
+            any(
+                "8443 is reserved by the existing BriefDash mapping" in line
+                for line in commands.splitlines()
+            )
+        )
 
     def test_incomplete_body_times_out_without_echo(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory, patch.object(

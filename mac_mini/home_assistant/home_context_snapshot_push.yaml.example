@@ -2,7 +2,7 @@
 # and the required Home Assistant restart for rest_command configuration.
 rest_command:
   home_context_post_snapshot:
-    url: "https://REPLACE_WITH_MAC_MINI_TAILNET_NAME:8443/v1/home-context/snapshot"
+    url: "https://REPLACE_WITH_MAC_MINI_TAILNET_NAME:9443/v1/home-context/snapshot"
     method: POST
     headers:
       X-Home-Context-Secret: !secret home_context_receiver_secret

@@ -123,9 +123,14 @@ The review-only receiver LaunchAgent is
 argument is deliberately an owner-reviewed secret-injection wrapper placeholder;
 the secret must not be pasted into the plist. The review-only Tailscale commands
 are in `tailscale/serve.commands.example`. They first capture the full existing
-Serve configuration, add only dedicated HTTPS port 8443 after conflict review,
+Serve configuration, add only dedicated HTTPS port 9443 after conflict review,
 read it back, and remove only that port on rollback. Bare whole-device `serve
 reset`/`serve off` and Funnel are forbidden.
+
+HTTPS port `8443` is reserved by the existing BriefDash mapping to its loopback
+service and must not be changed, removed, or reused by this package. Home
+Context uses only Tailscale Serve HTTPS `9443` to receiver loopback
+`127.0.0.1:8765`.
 
 ### Receiver responses
 
@@ -410,9 +415,10 @@ real household state.
 3. Choose private local paths outside synced folders, create them mode `0700`,
    and validate a manual one-shot ingest plus report first. Configure retention
    greater than twice the report drift window (the 45/14-day defaults comply).
-4. Capture `tailscale serve status --json`, review port 8443 for conflicts, add
-   only the dedicated 8443-to-127.0.0.1:8765 mapping, read it back, and prove
-   Funnel is off. Never use whole-device Serve reset/off commands.
+4. Capture `tailscale serve status --json`, confirm existing BriefDash HTTPS
+   port 8443 is untouched, review port 9443 for conflicts, add only the dedicated
+   9443-to-127.0.0.1:8765 mapping, read it back, and prove Funnel is off. Never
+   use whole-device Serve reset/off commands.
 5. Copy `launchd/xyz.buzz.home-context-analytics.plist.example` and the receiver
    template to `~/Library/LaunchAgents/`, replace every placeholder with an
    explicit local path, run `plutil -lint`, and only then bootstrap them after
@@ -447,7 +453,7 @@ aggregates and must remain local.
 
 If the later receiver path is installed, disable the HA snapshot automation
 first, boot out only the receiver and collector LaunchAgents, then remove only
-the dedicated mapping with `tailscale serve --https=8443 off`. Capture
+the dedicated mapping with `tailscale serve --https=9443 off`. Capture
 `tailscale serve status --json` afterward and compare it to the saved pre-change
 configuration to prove unrelated mappings remain. Do not use `tailscale serve
 reset` or bare `tailscale serve off`. The inert HA `rest_command` can remain
