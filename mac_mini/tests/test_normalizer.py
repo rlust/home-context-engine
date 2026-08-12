@@ -224,6 +224,45 @@ class NormalizerTests(unittest.TestCase):
             self.assertEqual(result["feedback_created"], 0)
             self.assertEqual(len(output.read_text(encoding="utf-8").splitlines()), 1)
 
+    def test_unknown_button_baseline_first_press_and_cursor_health_regression(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            output = root / "events.jsonl"
+            with NormalizerState(root / "state.sqlite3") as state:
+                first = normalize_and_append(load_snapshot(), state, output)
+                self.assertTrue(first["prediction_created"])
+                self.assertEqual(first["feedback_created"], 0)
+                self.assertIsNone(json.loads(state.load()["feedback_cursors_json"])["confirm"])
+
+                pressed = refresh(load_snapshot(), "2026-08-12T18:05:00Z")
+                pressed["entities"][CONFIRM]["state"] = "2026-08-12T18:04:00Z"
+                pressed["entities"][CONFIRM]["last_changed"] = "2026-08-12T18:04:00Z"
+                pressed["entities"][CONFIRM]["last_reported"] = "2026-08-12T18:04:00Z"
+                pressed["entities"][CONFIRMATIONS]["state"] = "1"
+                emitted = normalize_and_append(pressed, state, output)
+                self.assertEqual(emitted["feedback_created"], 1)
+
+                unavailable = refresh(pressed, "2026-08-12T18:06:00Z")
+                unavailable["entities"][CONFIRM]["state"] = "unavailable"
+                unavailable["entities"][CONFIRM]["last_changed"] = "2026-08-12T18:06:00Z"
+                unavailable["entities"][CONFIRM]["last_reported"] = "2026-08-12T18:06:00Z"
+                missing = normalize_and_append(unavailable, state, output)
+                self.assertEqual(missing["feedback_created"], 0)
+                self.assertEqual(
+                    json.loads(state.load()["feedback_cursors_json"])["confirm"],
+                    "2026-08-12T18:04:00Z",
+                )
+
+                recovered = refresh(pressed, "2026-08-12T18:07:00Z")
+                recovered["entities"][CONFIRM]["last_changed"] = "2026-08-12T18:07:00Z"
+                recovered["entities"][CONFIRM]["last_reported"] = "2026-08-12T18:07:00Z"
+                replay = normalize_and_append(recovered, state, output)
+                self.assertEqual(replay["feedback_created"], 0)
+
+            records = [json.loads(line) for line in output.read_text(encoding="utf-8").splitlines()]
+            self.assertEqual([record["kind"] for record in records], ["prediction", "feedback"])
+            self.assertEqual(records[1]["outcome"], "confirm")
+
     def test_same_window_transition_and_feedback_use_source_time_order(self) -> None:
         for press_time, transition_source_time, expected_record_index in (
             ("2026-08-12T18:07:00Z", "2026-08-12T18:06:00Z", 1),

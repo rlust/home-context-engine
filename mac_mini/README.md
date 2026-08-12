@@ -123,9 +123,13 @@ namespaces, making replay stable without embedding household-readable values.
 
 Input-button `state` is the feedback press cursor. `last_changed` may advance
 during HA reload/recreation and is never treated as a press; changing it alone
-emits nothing. The first snapshot establishes a baseline. Later button-state
-timestamps preserve revisions. Counters only check that audit deltas match newly
-observed presses and never create feedback events.
+emits nothing. A button state of `unknown` or `unavailable` means no known press
+cursor and emits nothing. The first snapshot establishes a nullable baseline.
+Later valid button-state timestamps preserve revisions. Once a valid cursor is
+known, a temporary regression to unknown/unavailable does not erase it, so the
+same timestamp returning after recovery cannot replay a label. Counters only
+check that audit deltas match newly observed presses and never create feedback
+events.
 
 For a semantic transition, the normalizer computes the transition time from
 the `last_changed` timestamp of the source field(s) that changed the transition

@@ -279,7 +279,7 @@ class NormalizerState:
         snapshot_at: str,
         transition_time: str,
         transition_components: Mapping[str, Any],
-        feedback_cursors: Mapping[str, str],
+        feedback_cursors: Mapping[str, str | None],
         counters: Mapping[str, int],
     ) -> None:
         self.connection.execute(
@@ -433,7 +433,7 @@ def normalize_snapshot(snapshot: Any, state: NormalizerState) -> tuple[list[dict
         transition_time = prior["transition_time"] or prior["snapshot_at"]
 
     previous_cursors = json.loads(prior["feedback_cursors_json"]) if prior else {}
-    current_cursors: dict[str, str] = {}
+    current_cursors: dict[str, str | None] = {}
     emitted_feedback_outcomes: list[str] = []
     feedback_specs = (
         ("confirm", CONFIRM, None),
@@ -442,7 +442,11 @@ def normalize_snapshot(snapshot: Any, state: NormalizerState) -> tuple[list[dict
     )
     for outcome, entity_id, corrected_activity in feedback_specs:
         entity = _entity(snapshot, entity_id)
-        cursor = parse_timestamp(entity["state"], f"{entity_id}.state")
+        raw_cursor = entity["state"].strip()
+        if raw_cursor.lower() in {"unknown", "unavailable"}:
+            current_cursors[outcome] = previous_cursors.get(outcome)
+            continue
+        cursor = parse_timestamp(raw_cursor, f"{entity_id}.state")
         if _parse_time(cursor, "feedback cursor") > snapshot_time:
             raise SnapshotError("feedback button state timestamp cannot be after snapshot_at")
         current_cursors[outcome] = cursor
