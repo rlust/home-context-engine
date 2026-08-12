@@ -2,7 +2,7 @@
 # and the required Home Assistant restart for rest_command configuration.
 rest_command:
   home_context_post_snapshot:
-    url: "https://REPLACE_WITH_MAC_MINI_TAILNET_NAME:9443/v1/home-context/snapshot"
+    url: "https://randys-mac-mini.tail1f233.ts.net:9443/v1/home-context/snapshot"
     method: POST
     headers:
       X-Home-Context-Secret: !secret home_context_receiver_secret
@@ -14,8 +14,8 @@ rest_command:
         'snapshot_at': now().isoformat(),
         'observer_config': {
           'automation_id': 'automation.home_context_evening_observer',
-          'config_sha256': 'REPLACE_WITH_REVIEWED_64_CHAR_LOWERCASE_SHA256',
-          'version': 'REPLACE_WITH_REVIEWED_64_CHAR_LOWERCASE_VERSION_DIGEST'
+          'config_sha256': 'bc406e98598bebbc20c0efcb963c0443facc203b71ba7a9cfedfca21e8ca20e6',
+          'version': '0b7554c973b019865c6962a69d687559251f3e2d00f56767e7f2de5c9f880470'
         },
         'entities': {
           'input_select.home_context_mode': {'state': states.input_select.home_context_mode.state, 'last_changed': states.input_select.home_context_mode.last_changed.isoformat(), 'last_reported': states.input_select.home_context_mode.last_reported.isoformat()},

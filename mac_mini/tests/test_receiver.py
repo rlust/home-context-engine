@@ -217,7 +217,7 @@ class ReceiverTests(unittest.TestCase):
         for required in (
             "verify_ssl: true",
             "timeout: 5",
-            ":9443/v1/home-context/snapshot",
+            "https://randys-mac-mini.tail1f233.ts.net:9443/v1/home-context/snapshot",
             "!secret home_context_receiver_secret",
             "continue_on_error: true",
             "observer_event_time",
@@ -231,6 +231,15 @@ class ReceiverTests(unittest.TestCase):
             f"mode {REVIEWED_OBSERVER_MODE}",
         ):
             self.assertIn(required, draft)
+        self.assertNotIn("REPLACE_WITH_", draft)
+        self.assertIn(
+            "bc406e98598bebbc20c0efcb963c0443facc203b71ba7a9cfedfca21e8ca20e6",
+            draft,
+        )
+        self.assertIn(
+            "0b7554c973b019865c6962a69d687559251f3e2d00f56767e7f2de5c9f880470",
+            draft,
+        )
         self.assertNotIn(":8443/", draft)
         self.assertIn(REVIEWED_OBSERVER_MODE, NON_OVERLAPPING_OBSERVER_MODES)
         for entity_id in PREDICTION_HELPERS:

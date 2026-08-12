@@ -191,6 +191,12 @@ SHA-256 `config_sha256` and `version`; its canonical object becomes the opaque
 `observer_version` digest. Each entity is exactly `state`, `last_changed`, and
 `last_reported`. The latter two are source timestamps, not blanket health
 heartbeats.
+
+The Newark deployment pins live Observer config hash `6b5fa7a109f6636a`.
+`config_sha256` is SHA-256 of that reviewed hash string, and `version` is
+SHA-256 of `home-context-export-v1:` plus that hash. Any Observer config change
+invalidates both reviewed digests and requires a new read-only review before
+the export automation continues.
 Unknown entities, missing required entities, attributes, service/event fields,
 transport configuration, and other extras are rejected.
 
