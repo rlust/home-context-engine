@@ -13,7 +13,7 @@ from typing import Iterator
 from .model import Episode, Feedback
 
 
-SCHEMA_VERSION = "4"
+SCHEMA_VERSION = "5"
 
 
 def _open_writable(path: Path) -> sqlite3.Connection:
@@ -38,7 +38,8 @@ def _open_writable(path: Path) -> sqlite3.Connection:
             signals_json TEXT NOT NULL,
             observer_version TEXT NOT NULL,
             context_flags_json TEXT NOT NULL DEFAULT '[]',
-            next_activity TEXT
+            next_activity TEXT,
+            fp300_context_json TEXT
         );
         CREATE TABLE IF NOT EXISTS feedback_events (
             source_event_id TEXT PRIMARY KEY,
@@ -119,6 +120,14 @@ def _open_writable(path: Path) -> sqlite3.Connection:
             connection.execute(
                 "ALTER TABLE feedback_events ADD COLUMN audit_issues_json TEXT NOT NULL DEFAULT '[]'"
             )
+        connection.execute("UPDATE metadata SET value = '4' WHERE key = 'schema_version'")
+        version = "4"
+    if version == "4":
+        columns = {
+            row[1] for row in connection.execute("PRAGMA table_info(episodes)").fetchall()
+        }
+        if "fp300_context_json" not in columns:
+            connection.execute("ALTER TABLE episodes ADD COLUMN fp300_context_json TEXT")
         connection.execute(
             "UPDATE metadata SET value = ? WHERE key = 'schema_version'", (SCHEMA_VERSION,)
         )
@@ -172,6 +181,9 @@ class LocalStore:
             episode.observer_version,
             json.dumps(episode.context_flags, separators=(",", ":")),
             episode.next_activity,
+            json.dumps(episode.fp300_context, sort_keys=True, separators=(",", ":"))
+            if episode.fp300_context is not None
+            else None,
         )
         try:
             self.connection.execute(
@@ -179,8 +191,8 @@ class LocalStore:
                 INSERT INTO episodes(
                     episode_id, source_event_id, occurred_at, mode, activity, confidence,
                     active_rooms_json, resident_bucket, signals_json, observer_version,
-                    context_flags_json, next_activity
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    context_flags_json, next_activity, fp300_context_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 values,
             )
@@ -190,7 +202,7 @@ class LocalStore:
                 """
                 SELECT episode_id, source_event_id, occurred_at, mode, activity, confidence,
                        active_rooms_json, resident_bucket, signals_json, observer_version,
-                       context_flags_json, next_activity
+                       context_flags_json, next_activity, fp300_context_json
                 FROM episodes WHERE episode_id = ? OR source_event_id = ?
                 """,
                 (episode.episode_id, episode.source_event_id),

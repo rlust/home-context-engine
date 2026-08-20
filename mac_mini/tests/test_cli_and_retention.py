@@ -279,7 +279,7 @@ class CliAndRetentionTests(unittest.TestCase):
                 legacy_table = store.connection.execute(
                     "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'feedback'"
                 ).fetchone()
-            self.assertEqual(version, "4")
+            self.assertEqual(version, "5")
             self.assertEqual(tuple(migrated), ("confirm", 1, "[]"))
             self.assertIsNone(legacy_table)
 

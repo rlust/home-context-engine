@@ -9,6 +9,8 @@ import re
 from typing import Any, Mapping
 from uuid import UUID
 
+from .fp300 import FP300Error, validate_normalized_fp300
+
 
 MODES = frozenset(
     {
@@ -98,6 +100,7 @@ _EPISODE_KEYS = frozenset(
         "observer_version",
         "context_flags",
         "next_activity",
+        "fp300_context",
     }
 )
 
@@ -230,6 +233,7 @@ class Episode:
     observer_version: str
     context_flags: tuple[str, ...]
     next_activity: str | None
+    fp300_context: Mapping[str, Any] | None
 
     @classmethod
     def from_payload(cls, payload: Mapping[str, Any]) -> "Episode":
@@ -284,6 +288,12 @@ class Episode:
         next_activity = payload.get("next_activity")
         if next_activity is not None and next_activity not in ACTIVITIES:
             raise ValidationError("next_activity must be null or a whitelisted activity")
+        fp300_context = payload.get("fp300_context")
+        if fp300_context is not None:
+            try:
+                validate_normalized_fp300(fp300_context)
+            except FP300Error as exc:
+                raise ValidationError(str(exc)) from exc
 
         return cls(
             source_event_id=_require_identifier(payload.get("source_event_id"), "source_event_id"),
@@ -298,6 +308,7 @@ class Episode:
             observer_version=_require_identifier(payload.get("observer_version"), "observer_version"),
             context_flags=tuple(sorted(set(raw_flags))),
             next_activity=next_activity,
+            fp300_context=fp300_context,
         )
 
 

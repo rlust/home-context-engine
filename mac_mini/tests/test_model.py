@@ -34,6 +34,7 @@ class ModelTests(unittest.TestCase):
             "observer_version": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
             "context_flags": [],
             "next_activity": None,
+            "fp300_context": None,
         }
 
     def test_normalizes_timestamp_and_rooms(self) -> None:

@@ -32,6 +32,7 @@ from mac_mini.home_context_analytics.normalizer import (
     normalize_and_append,
     normalize_snapshot,
 )
+from mac_mini.home_context_analytics.fp300 import APPROVED_ENTITIES, TARGET_DISTANCE
 from mac_mini.home_context_analytics.report import build_report
 
 
@@ -54,7 +55,51 @@ def refresh(snapshot: dict[str, object], when: str) -> dict[str, object]:
     return changed
 
 
+def add_fp300(snapshot: dict[str, object]) -> dict[str, object]:
+    changed = copy.deepcopy(snapshot)
+    when = changed["snapshot_at"]
+    changed["source_context"] = {
+        "fp300-context-v1": {
+            "entities": {
+                entity_id: {
+                    "state": "off" if entity_id.startswith(("binary_sensor.", "switch.")) else "unknown",
+                    "last_changed": when,
+                    "last_reported": when,
+                }
+                for entity_id in APPROVED_ENTITIES
+            }
+        }
+    }
+    return changed
+
+
 class NormalizerTests(unittest.TestCase):
+    def test_optional_fp300_lane_is_strict_freshness_aware_and_backward_compatible(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            with NormalizerState(Path(temporary_directory) / "legacy.sqlite3") as state:
+                legacy_records, _ = normalize_snapshot(load_snapshot(), state)
+            self.assertIsNone(legacy_records[0]["fp300_context"])
+
+            enriched = add_fp300(load_snapshot())
+            enriched["source_context"]["fp300-context-v1"]["entities"][TARGET_DISTANCE]["state"] = "6.56"
+            enriched["source_context"]["fp300-context-v1"]["entities"][TARGET_DISTANCE]["last_reported"] = "2026-08-12T17:57:59Z"
+            with NormalizerState(Path(temporary_directory) / "enriched.sqlite3") as state:
+                records, _ = normalize_snapshot(enriched, state)
+            context = records[0]["fp300_context"]
+            self.assertEqual(context["schema"], "fp300-context-v1")
+            self.assertEqual(context["entities"][TARGET_DISTANCE]["freshness"], "stale")
+            self.assertEqual(context["entities"][TARGET_DISTANCE]["role"], "evidence")
+            self.assertEqual(
+                context["entities"]["button.family_room_aqara_presence_multi_sensor_fp300_restart_device"]["role"],
+                "audit_only",
+            )
+
+            unknown = add_fp300(load_snapshot())
+            unknown["source_context"]["fp300-context-v1"]["entities"]["sensor.private_camera"] = {
+                "state": "on", "last_changed": unknown["snapshot_at"], "last_reported": unknown["snapshot_at"]
+            }
+            with NormalizerState(Path(temporary_directory) / "unknown.sqlite3") as state, self.assertRaises(SnapshotError):
+                normalize_snapshot(unknown, state)
     def test_normalizer_has_no_transport_network_or_subprocess_imports(self) -> None:
         source_path = ROOT / "mac_mini" / "home_context_analytics" / "normalizer.py"
         tree = ast.parse(source_path.read_text(encoding="utf-8"))

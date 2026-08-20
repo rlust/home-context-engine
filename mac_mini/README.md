@@ -58,7 +58,8 @@ returns 404 and every other method returns 405. Requests require:
 - `X-Home-Context-Secret`, compared in constant time against a high-entropy
   secret of at least 32 bytes injected through the receiver process environment;
 - a complete snapshot whose `snapshot_at` is within 10 minutes of receiver time;
-- the existing exact 22-entity snapshot and per-entity field allowlists.
+- the existing exact 22-entity snapshot and per-entity field allowlists, with an
+  optional reviewed `fp300-context-v1` source lane.
 
 The owner must later generate the dedicated secret with a cryptographically
 secure random generator. The same value belongs only in Mac Keychain/injected
@@ -185,7 +186,15 @@ It may map only these live helpers:
 
 ## Phase 3.3 snapshot contract
 
-The top level is exactly `snapshot_at`, `observer_config`, and `entities`.
+The legacy top level remains exactly `snapshot_at`, `observer_config`, and
+`entities`. A backward-compatible enriched snapshot may add `source_context`
+containing only `fp300-context-v1`. That source requires the exact 37
+state-backed Family Room FP300 entities and the same three per-entity fields.
+Evidence, source-health, and audit-only roles are assigned locally; the source
+cannot carry service calls or command instructions. Target distance is fresh for
+two minutes, other readings for fifteen minutes, and unavailable values are
+explicitly marked missing. The two registry-only RSSI/LQI entries are not accepted
+until Home Assistant exposes stable state records for them.
 `observer_config` is exactly the reviewed Observer automation ID plus lowercase
 SHA-256 `config_sha256` and `version`; its canonical object becomes the opaque
 `observer_version` digest. Each entity is exactly `state`, `last_changed`, and

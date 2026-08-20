@@ -26,6 +26,7 @@ from mac_mini.home_context_analytics.ha_export_contract import (
     REVIEWED_OBSERVER_MODE,
     export_ready,
 )
+from mac_mini.home_context_analytics.fp300 import APPROVED_ENTITIES
 from mac_mini.home_context_analytics.normalizer import REQUIRED_ENTITIES
 from mac_mini.home_context_analytics.receiver import (
     MAX_BODY_BYTES,
@@ -214,6 +215,10 @@ class ReceiverTests(unittest.TestCase):
         ).read_text(encoding="utf-8")
         rendered_entities = set(re.findall(r"^\s+'([^']+)': \{'state':", draft, re.MULTILINE))
         self.assertEqual(rendered_entities, set(REQUIRED_ENTITIES))
+        rendered_fp300_entities = set(
+            re.findall(r'^\s+"([^"]+)": \{\'state\':', draft, re.MULTILINE)
+        )
+        self.assertEqual(rendered_fp300_entities, set(APPROVED_ENTITIES))
         for required in (
             "verify_ssl: true",
             "timeout: 5",

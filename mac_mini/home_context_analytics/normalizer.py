@@ -11,6 +11,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Mapping
 
+from .fp300 import FP300Error, SOURCE_ID as FP300_SOURCE_ID, normalize_fp300
 from .model import (
     ACTIVITIES,
     FEEDBACK_OUTCOMES,
@@ -73,7 +74,8 @@ REQUIRED_ENTITIES = frozenset(
     }
 )
 
-_SNAPSHOT_KEYS = frozenset({"snapshot_at", "observer_config", "entities"})
+_SNAPSHOT_KEYS = frozenset({"snapshot_at", "observer_config", "entities", "source_context"})
+_LEGACY_SNAPSHOT_KEYS = frozenset({"snapshot_at", "observer_config", "entities"})
 _ENTITY_KEYS = frozenset({"state", "last_changed", "last_reported"})
 _OBSERVER_KEYS = frozenset({"automation_id", "config_sha256", "version"})
 _FORBIDDEN_TOP_LEVEL = frozenset({"event", "service", "services", "url", "token", "websocket", "mcp"})
@@ -314,7 +316,9 @@ class NormalizerState:
 def validate_snapshot(snapshot: Any) -> Mapping[str, Any]:
     if not isinstance(snapshot, Mapping):
         raise SnapshotError("snapshot must be an object")
-    _exact_keys(snapshot, _SNAPSHOT_KEYS, "snapshot")
+    snapshot_keys = set(snapshot)
+    if snapshot_keys not in {_SNAPSHOT_KEYS, _LEGACY_SNAPSHOT_KEYS}:
+        _exact_keys(snapshot, _SNAPSHOT_KEYS, "snapshot")
     entities = snapshot["entities"]
     if not isinstance(entities, Mapping):
         raise SnapshotError("entities must be an object")
@@ -334,6 +338,17 @@ def validate_snapshot(snapshot: Any) -> Mapping[str, Any]:
                 snapshot["snapshot_at"], "snapshot_at"
             ):
                 raise SnapshotError(f"{entity_id}.{timestamp_field} cannot be after snapshot_at")
+    if "source_context" in snapshot:
+        source_context = snapshot["source_context"]
+        if not isinstance(source_context, Mapping) or set(source_context) != {FP300_SOURCE_ID}:
+            raise SnapshotError(f"source_context must contain only {FP300_SOURCE_ID}")
+        try:
+            normalize_fp300(
+                source_context[FP300_SOURCE_ID],
+                _parse_time(snapshot["snapshot_at"], "snapshot_at"),
+            )
+        except FP300Error as exc:
+            raise SnapshotError(str(exc)) from exc
     return snapshot
 
 
@@ -389,6 +404,11 @@ def normalize_snapshot(snapshot: Any, state: NormalizerState) -> tuple[list[dict
         "observer_version": observer_version,
         "context_flags": list(_summary_flags(summary)),
         "next_activity": _next_activity(_entity(snapshot, NEXT_ACTIVITY)["state"]),
+        "fp300_context": (
+            normalize_fp300(snapshot["source_context"][FP300_SOURCE_ID], snapshot_time)
+            if "source_context" in snapshot
+            else None
+        ),
     }
     semantic = _transition_components(prediction)
     transition_key = _transition_key(semantic)
