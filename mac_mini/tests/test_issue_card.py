@@ -5,6 +5,8 @@ import json
 from pathlib import Path
 import unittest
 
+from jinja2 import Environment, StrictUndefined
+
 from mac_mini.home_context_analytics.diagnostics import DiagnosticReplay, detect_signal_issues
 from mac_mini.home_context_analytics.issue_card import IssueCardState, build_issue_card_payload
 
@@ -18,6 +20,22 @@ class IssueCardTests(unittest.TestCase):
     def finding(self):
         replay = DiagnosticReplay.from_payload(json.loads(FIXTURE.read_text(encoding="utf-8")))
         return detect_signal_issues(replay)[0]
+
+    def render_preview(self, issue_card: dict[str, object]) -> str:
+        view = json.loads(PREVIEW.read_text(encoding="utf-8"))
+        markdown = view["sections"][0]["cards"][0]["cards"][0]["content"]
+        attributes = {
+            "issue_card": issue_card,
+            "generated_at": "2026-08-23T14:28:23Z",
+        }
+        template = Environment(
+            autoescape=False,
+            undefined=StrictUndefined,
+        ).from_string(markdown)
+        return template.render(
+            states=lambda _entity_id: issue_card["state"],
+            state_attr=lambda _entity_id, attribute: attributes.get(attribute),
+        )
 
     def test_payload_distinguishes_every_lifecycle_stage_and_safety_boundary(self) -> None:
         updated_at = datetime(2026, 8, 23, 14, tzinfo=timezone.utc)
@@ -59,6 +77,61 @@ class IssueCardTests(unittest.TestCase):
         self.assertEqual(lifecycle["rolled_back"], "available")
         self.assertIsNotNone(payload["proposed_mutation"])
         self.assertTrue(payload["rollback_available"])
+
+    def test_verification_failed_fixture_renders_lifecycle_and_rollback_copy(self) -> None:
+        failure = (
+            "Replacement source was stale at canary time; no end-to-end transition "
+            "propagated."
+        )
+        payload = build_issue_card_payload(
+            IssueCardState(
+                self.finding(),
+                "verification_failed",
+                datetime(2026, 8, 23, 14, 28, 23, tzinfo=timezone.utc),
+                approval_reference="owner-event-verification-failed",
+                verification_result=failure,
+            )
+        )
+
+        rendered = self.render_preview(payload)
+
+        self.assertIn("## Verification failed", rendered)
+        self.assertIn("**Rollback:** ready", rendered)
+        self.assertIn(
+            "Detection **complete** → Proposal **complete** → Approval **complete** "
+            "→ Verification **failed** → Resolution **not_reached**",
+            rendered,
+        )
+        self.assertIn("Rollback **available**", rendered)
+        self.assertIn(f"⚠️ **Verification failed:** {failure}", rendered)
+        self.assertIn("**Corrective path:** keep the issue open", rendered)
+        self.assertIn("Home Context AI Actions: **OFF**", rendered)
+        self.assertNotIn("Physical canary pending", rendered)
+
+    def test_physical_canary_pending_fixture_renders_lifecycle_and_rollback_copy(self) -> None:
+        payload = build_issue_card_payload(
+            IssueCardState(
+                self.finding(),
+                "verifying",
+                datetime(2026, 8, 23, 14, 28, 23, tzinfo=timezone.utc),
+                approval_reference="owner-event-canary-pending",
+            )
+        )
+
+        rendered = self.render_preview(payload)
+
+        self.assertIn("## Verifying", rendered)
+        self.assertIn("**Rollback:** ready", rendered)
+        self.assertIn(
+            "Detection **complete** → Proposal **complete** → Approval **complete** "
+            "→ Verification **current** → Resolution **pending**",
+            rendered,
+        )
+        self.assertIn("Rollback **available**", rendered)
+        self.assertIn("⚠️ **Physical canary pending:**", rendered)
+        self.assertIn("verify ON and clear transitions", rendered)
+        self.assertIn("Home Context AI Actions: **OFF**", rendered)
+        self.assertNotIn("**Verification failed:**", rendered)
 
     def test_verification_and_resolution_require_explicit_approval(self) -> None:
         updated_at = datetime(2026, 8, 23, 14, tzinfo=timezone.utc)

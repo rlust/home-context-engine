@@ -44,6 +44,7 @@ from mac_mini.home_context_analytics.diagnostic_transport import (
     HELPER_CONFIG_ENTRY_ID,
     HELPER_CONFIG_SHA256,
     HELPER_ID,
+    MAX_REPORT_BYTES,
     SIGNAL_METADATA,
     SOURCE_ID as DIAGNOSTIC_SOURCE_ID,
 )
@@ -181,6 +182,33 @@ class ReceiverTests(unittest.TestCase):
         expected = (503, {"status": "unavailable", "reason": "diagnostics_unavailable"})
         self.assertEqual(missing, expected)
         self.assertEqual(stale, expected)
+
+    def test_diagnostics_get_fails_closed_for_malformed_and_oversized_reports(self) -> None:
+        private_marker = "SYNTHETIC_DIAGNOSTIC_VALUE_MUST_NOT_LEAK"
+        expected = (503, {"status": "unavailable", "reason": "diagnostics_unavailable"})
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            harness = ReceiverHarness(root)
+            report_path = root / "signal-diagnostics.json"
+            try:
+                post_status, _ = harness.request(body=snapshot_bytes(diagnostic_snapshot()))
+                self.assertEqual(post_status, 202)
+                cases = {
+                    "malformed": f'{{"private":"{private_marker}"'.encode("utf-8"),
+                    "oversized": private_marker.encode("utf-8")
+                    + b"x" * (MAX_REPORT_BYTES + 1),
+                }
+                for name, content in cases.items():
+                    with self.subTest(name=name):
+                        report_path.write_bytes(content)
+                        report_path.chmod(0o600)
+                        result = harness.request(
+                            method="GET", path=DIAGNOSTICS_PATH, body=None
+                        )
+                        self.assertEqual(result, expected)
+                        self.assertNotIn(private_marker, json.dumps(result, sort_keys=True))
+            finally:
+                harness.close()
 
     def test_diagnostic_source_rejects_helper_drift_before_writing_report(self) -> None:
         snapshot = diagnostic_snapshot()
