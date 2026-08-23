@@ -108,6 +108,8 @@ class IssueCardTests(unittest.TestCase):
         self.assertIn("Resolution", serialized)
         self.assertIn("Rollback", serialized)
         self.assertIn("AI Actions: **OFF**", serialized)
+        self.assertIn("Diagnostics unavailable", serialized)
+        self.assertIn("No healthy result is inferred", serialized)
         self.assertNotIn("perform-action", serialized)
         self.assertNotIn("tap_action", serialized)
         self.assertNotIn("service:", serialized)

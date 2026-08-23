@@ -14,6 +14,13 @@ from pathlib import Path
 from typing import Any, Callable
 
 from .normalizer import NormalizerState, SnapshotError, normalize_and_append, validate_snapshot
+from .diagnostic_transport import (
+    DIAGNOSTICS_PATH,
+    DiagnosticTransportError,
+    SOURCE_ID as DIAGNOSTIC_SOURCE_ID,
+    process_diagnostic_source,
+    read_fresh_diagnostics,
+)
 
 
 RECEIVER_PATH = "/v1/home-context/snapshot"
@@ -81,18 +88,25 @@ class SnapshotReceiver:
         replay_database: Path,
         normalizer_database: Path,
         output: Path,
+        diagnostics_database: Path | None = None,
+        diagnostics_output: Path | None = None,
         now: Callable[[], datetime] | None = None,
     ):
         encoded_secret = secret.encode("utf-8")
         if len(encoded_secret) < MIN_SECRET_BYTES:
             raise ReceiverError("receiver secret must contain at least 32 bytes")
-        paths = {replay_database.resolve(), normalizer_database.resolve(), output.resolve()}
-        if len(paths) != 3:
-            raise ReceiverError("replay, normalizer-state, and output paths must be distinct")
+        optional_paths = [path for path in (diagnostics_database, diagnostics_output) if path is not None]
+        paths = {replay_database.resolve(), normalizer_database.resolve(), output.resolve(), *(path.resolve() for path in optional_paths)}
+        if len(paths) != 3 + len(optional_paths):
+            raise ReceiverError("receiver storage and output paths must be distinct")
+        if (diagnostics_database is None) != (diagnostics_output is None):
+            raise ReceiverError("diagnostics database and output must be configured together")
         self._secret = encoded_secret
         self._replay = ReplayStore(replay_database)
         self._normalizer_database = normalizer_database
         self._output = output
+        self._diagnostics_database = diagnostics_database
+        self._diagnostics_output = diagnostics_output
         self._now = now or (lambda: datetime.now(timezone.utc))
         self._request_lock = threading.Lock()
 
@@ -136,7 +150,17 @@ class SnapshotReceiver:
                 return 200, {"status": "duplicate", "reason": "replay"}
             with NormalizerState(self._normalizer_database) as state:
                 result = normalize_and_append(snapshot, state, self._output)
-        except (UnicodeDecodeError, json.JSONDecodeError, SnapshotError, ReceiverError, ValueError):
+            if DIAGNOSTIC_SOURCE_ID in snapshot.get("source_context", {}):
+                if self._diagnostics_database is None or self._diagnostics_output is None:
+                    raise ReceiverError("diagnostics storage is not configured")
+                process_diagnostic_source(
+                    snapshot["source_context"][DIAGNOSTIC_SOURCE_ID],
+                    observed_at=snapshot_at,
+                    database=self._diagnostics_database,
+                    output=self._diagnostics_output,
+                    generated_at=now,
+                )
+        except (UnicodeDecodeError, json.JSONDecodeError, SnapshotError, ReceiverError, DiagnosticTransportError, ValueError):
             return 422, {"status": "rejected", "reason": "invalid_snapshot"}
         except (OSError, sqlite3.Error):
             return 503, {"status": "unavailable", "reason": "local_storage"}
@@ -155,6 +179,20 @@ class SnapshotReceiver:
                 result["feedback_audit_failures"] or not result["counter_audit_consistent"]
             ),
         }
+
+    def diagnostics(self, *, supplied_secret: str | None) -> tuple[int, dict[str, Any]]:
+        try:
+            if supplied_secret is None or not hmac.compare_digest(
+                supplied_secret.encode("utf-8"), self._secret
+            ):
+                return 401, {"status": "rejected", "reason": "authentication_failed"}
+            if self._diagnostics_output is None:
+                return 503, {"status": "unavailable", "reason": "diagnostics_unavailable"}
+            return 200, read_fresh_diagnostics(self._diagnostics_output, now=self._now())
+        except (DiagnosticTransportError, OSError, ValueError):
+            return 503, {"status": "unavailable", "reason": "diagnostics_unavailable"}
+        except Exception:
+            return 500, dict(INTERNAL_ERROR_RESPONSE)
 
 
 def make_handler(receiver: SnapshotReceiver) -> type[BaseHTTPRequestHandler]:
@@ -179,7 +217,9 @@ def make_handler(receiver: SnapshotReceiver) -> type[BaseHTTPRequestHandler]:
 
         def _do_post(self) -> None:
             if self.path != RECEIVER_PATH:
-                self._respond(404, {"status": "rejected", "reason": "not_found"})
+                code = 405 if self.path == DIAGNOSTICS_PATH else 404
+                reason = "method_not_allowed" if code == 405 else "not_found"
+                self._respond(code, {"status": "rejected", "reason": reason})
                 return
             content_type = self.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
             if content_type != "application/json":
@@ -206,10 +246,24 @@ def make_handler(receiver: SnapshotReceiver) -> type[BaseHTTPRequestHandler]:
             )
             self._respond(code, payload)
 
+        def do_GET(self) -> None:  # noqa: N802
+            try:
+                if self.path != DIAGNOSTICS_PATH:
+                    code = 405 if self.path == RECEIVER_PATH else 404
+                    reason = "method_not_allowed" if code == 405 else "not_found"
+                    self._respond(code, {"status": "rejected", "reason": reason})
+                    return
+                code, payload = receiver.diagnostics(
+                    supplied_secret=self.headers.get(SECRET_HEADER)
+                )
+                self._respond(code, payload)
+            except Exception:
+                self._respond(500, dict(INTERNAL_ERROR_RESPONSE))
+
         def _method_not_allowed(self) -> None:
             self._respond(405, {"status": "rejected", "reason": "method_not_allowed"})
 
-        do_GET = do_PUT = do_PATCH = do_DELETE = _method_not_allowed
+        do_HEAD = do_OPTIONS = do_PUT = do_PATCH = do_DELETE = _method_not_allowed
 
         def _respond(self, code: int, payload: dict[str, Any]) -> None:
             body = (json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n").encode()

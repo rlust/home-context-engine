@@ -1,5 +1,27 @@
 # REVIEW-ONLY DRAFT. Do not install without config validation, backup, owner approval,
 # and the required Home Assistant restart for rest_command configuration.
+rest:
+  - resource: "https://randys-mac-mini.tail1f233.ts.net:9443/v1/home-context/diagnostics"
+    method: GET
+    headers:
+      X-Home-Context-Secret: !secret home_context_receiver_secret
+    verify_ssl: true
+    timeout: 5
+    scan_interval: 60
+    sensor:
+      - name: Home Context Signal Diagnostics
+        unique_id: home_context_signal_diagnostics
+        value_template: "{{ value_json.overall_status }}"
+        json_attributes:
+          - schema_version
+          - generated_at
+          - observed_at
+          - fresh_until
+          - issue_count
+          - issue_card
+          - safety
+          - privacy
+
 rest_command:
   home_context_post_snapshot:
     url: "https://randys-mac-mini.tail1f233.ts.net:9443/v1/home-context/snapshot"
@@ -42,6 +64,31 @@ rest_command:
           'counter.home_context_unsure': {'state': states.counter.home_context_unsure.state, 'last_changed': states.counter.home_context_unsure.last_changed.isoformat(), 'last_reported': states.counter.home_context_unsure.last_reported.isoformat()}
         },
         'source_context': {
+          'garage-diagnostics-v1': {
+            'schema_version': 1,
+            'helper': {
+              'config_entry_id': '01KZHASWE6S7W7NE177MHX89AF',
+              'config_sha256': '78ab0c78b8859d48eb13549eca77484db9e2036140272fccde20c797e74880dc',
+              'entity_id': 'binary_sensor.garage_occupied',
+              'device_class': 'occupancy',
+              'source_entity_ids': ['binary_sensor.pir_motion_sensor_2_sensor_state_motion', 'binary_sensor.gdo1_motion', 'binary_sensor.grgdo1_motion'],
+              'state': states.binary_sensor.garage_occupied.state,
+              'last_changed': states.binary_sensor.garage_occupied.last_changed.isoformat(),
+              'last_reported': states.binary_sensor.garage_occupied.last_reported.isoformat()
+            },
+            'signals': {
+              "binary_sensor.pir_motion_sensor_2_motion_detection": {'state': states.binary_sensor.pir_motion_sensor_2_motion_detection.state, 'last_changed': states.binary_sensor.pir_motion_sensor_2_motion_detection.last_changed.isoformat(), 'last_reported': states.binary_sensor.pir_motion_sensor_2_motion_detection.last_reported.isoformat()},
+              "binary_sensor.pir_motion_sensor_2_sensor_state_motion": {'state': states.binary_sensor.pir_motion_sensor_2_sensor_state_motion.state, 'last_changed': states.binary_sensor.pir_motion_sensor_2_sensor_state_motion.last_changed.isoformat(), 'last_reported': states.binary_sensor.pir_motion_sensor_2_sensor_state_motion.last_reported.isoformat()},
+              "binary_sensor.gdo1_motion": {'state': states.binary_sensor.gdo1_motion.state, 'last_changed': states.binary_sensor.gdo1_motion.last_changed.isoformat(), 'last_reported': states.binary_sensor.gdo1_motion.last_reported.isoformat()},
+              "binary_sensor.grgdo1_motion": {'state': states.binary_sensor.grgdo1_motion.state, 'last_changed': states.binary_sensor.grgdo1_motion.last_changed.isoformat(), 'last_reported': states.binary_sensor.grgdo1_motion.last_reported.isoformat()}
+            },
+            'downstream': {
+              'entity_id': 'sensor.home_active_room',
+              'state': states.sensor.home_active_room.state,
+              'last_changed': states.sensor.home_active_room.last_changed.isoformat(),
+              'last_reported': states.sensor.home_active_room.last_reported.isoformat()
+            }
+          },
           'fp300-context-v1': {
             'entities': {
               "button.aqara_lumi_sensor_occupy_agl8_identify": {'state': states.button.aqara_lumi_sensor_occupy_agl8_identify.state, 'last_changed': states.button.aqara_lumi_sensor_occupy_agl8_identify.last_changed.isoformat(), 'last_reported': states.button.aqara_lumi_sensor_occupy_agl8_identify.last_reported.isoformat()},
@@ -108,6 +155,18 @@ automation:
           - input_button.home_context_confirm
           - input_button.home_context_mark_wrong
           - input_button.home_context_mark_unsure
+      - trigger: state
+        id: diagnostics
+        entity_id:
+          - binary_sensor.garage_occupied
+          - binary_sensor.pir_motion_sensor_2_motion_detection
+          - binary_sensor.pir_motion_sensor_2_sensor_state_motion
+          - binary_sensor.gdo1_motion
+          - binary_sensor.grgdo1_motion
+          - sensor.home_active_room
+      - trigger: time_pattern
+        id: diagnostics
+        minutes: "/5"
     actions:
       - variables:
           observer_event_time: >-
@@ -149,7 +208,7 @@ automation:
                       message: "Home Context snapshot export stopped: Observer helper coherence timeout."
                   - stop: "Observer helper coherence proof did not complete; no snapshot was posted."
                     error: true
-          - conditions: "{{ trigger.id == 'feedback' }}"
+          - conditions: "{{ trigger.id in ['feedback', 'diagnostics'] }}"
             sequence:
               - delay: "00:00:01"
               - wait_template: >-
@@ -171,8 +230,8 @@ automation:
                   - action: system_log.write
                     data:
                       level: warning
-                      message: "Home Context feedback export stopped: Observer completion was not provable."
-                  - stop: "Observer was active or its completion state was unavailable; no feedback snapshot was posted."
+                      message: "Home Context snapshot export stopped: Observer completion was not provable."
+                  - stop: "Observer was active or its completion state was unavailable; no snapshot was posted."
                     error: true
         default:
           - stop: "Unrecognized snapshot-export trigger; no snapshot was posted."

@@ -12,6 +12,11 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from .fp300 import FP300Error, SOURCE_ID as FP300_SOURCE_ID, normalize_fp300
+from .diagnostic_transport import (
+    DiagnosticTransportError,
+    SOURCE_ID as DIAGNOSTIC_SOURCE_ID,
+    validate_diagnostic_source,
+)
 from .model import (
     ACTIVITIES,
     FEEDBACK_OUTCOMES,
@@ -340,14 +345,21 @@ def validate_snapshot(snapshot: Any) -> Mapping[str, Any]:
                 raise SnapshotError(f"{entity_id}.{timestamp_field} cannot be after snapshot_at")
     if "source_context" in snapshot:
         source_context = snapshot["source_context"]
-        if not isinstance(source_context, Mapping) or set(source_context) != {FP300_SOURCE_ID}:
-            raise SnapshotError(f"source_context must contain only {FP300_SOURCE_ID}")
+        allowed_sources = {FP300_SOURCE_ID, DIAGNOSTIC_SOURCE_ID}
+        if not isinstance(source_context, Mapping) or not source_context or not set(source_context) <= allowed_sources:
+            raise SnapshotError("source_context contains an unapproved or empty source set")
         try:
-            normalize_fp300(
-                source_context[FP300_SOURCE_ID],
-                _parse_time(snapshot["snapshot_at"], "snapshot_at"),
-            )
-        except FP300Error as exc:
+            if FP300_SOURCE_ID in source_context:
+                normalize_fp300(
+                    source_context[FP300_SOURCE_ID],
+                    _parse_time(snapshot["snapshot_at"], "snapshot_at"),
+                )
+            if DIAGNOSTIC_SOURCE_ID in source_context:
+                validate_diagnostic_source(
+                    source_context[DIAGNOSTIC_SOURCE_ID],
+                    _parse_time(snapshot["snapshot_at"], "snapshot_at"),
+                )
+        except (FP300Error, DiagnosticTransportError) as exc:
             raise SnapshotError(str(exc)) from exc
     return snapshot
 
@@ -406,7 +418,7 @@ def normalize_snapshot(snapshot: Any, state: NormalizerState) -> tuple[list[dict
         "next_activity": _next_activity(_entity(snapshot, NEXT_ACTIVITY)["state"]),
         "fp300_context": (
             normalize_fp300(snapshot["source_context"][FP300_SOURCE_ID], snapshot_time)
-            if "source_context" in snapshot
+            if "source_context" in snapshot and FP300_SOURCE_ID in snapshot["source_context"]
             else None
         ),
     }

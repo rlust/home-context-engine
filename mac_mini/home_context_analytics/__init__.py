@@ -2,6 +2,7 @@
 
 from .collector import collect_continuous_file, collect_jsonl
 from .diagnostics import DiagnosticReplay, detect_signal_issues, diagnostic_report_payload
+from .diagnostic_transport import process_diagnostic_source, read_fresh_diagnostics
 from .issue_card import IssueCardState, build_issue_card_payload
 from .repair import (
     ManagedHelper,
@@ -19,6 +20,8 @@ __all__ = [
     "DiagnosticReplay",
     "detect_signal_issues",
     "diagnostic_report_payload",
+    "process_diagnostic_source",
+    "read_fresh_diagnostics",
     "IssueCardState",
     "build_issue_card_payload",
     "ManagedHelper",

@@ -12,7 +12,7 @@ import tempfile
 import threading
 import time
 import unittest
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch
 
@@ -37,6 +37,16 @@ from mac_mini.home_context_analytics.receiver import (
     build_server,
     require_loopback_bind,
 )
+from mac_mini.home_context_analytics.diagnostic_transport import (
+    CANONICAL_SOURCE_IDS,
+    DIAGNOSTICS_PATH,
+    DOWNSTREAM_ID,
+    HELPER_CONFIG_ENTRY_ID,
+    HELPER_CONFIG_SHA256,
+    HELPER_ID,
+    SIGNAL_METADATA,
+    SOURCE_ID as DIAGNOSTIC_SOURCE_ID,
+)
 from mac_mini.home_context_analytics.report import build_report
 
 
@@ -59,6 +69,8 @@ class ReceiverHarness:
             replay_database=root / "replay.sqlite3",
             normalizer_database=root / "normalizer.sqlite3",
             output=root / "events.jsonl",
+            diagnostics_database=root / "diagnostics.sqlite3",
+            diagnostics_output=root / "signal-diagnostics.json",
             now=lambda: NOW,
         )
         self.server = build_server("127.0.0.1", 0, self.receiver)
@@ -94,7 +106,94 @@ class ReceiverHarness:
         return response.status, payload
 
 
+def diagnostic_snapshot() -> dict[str, object]:
+    snapshot = json.loads(FIXTURE.read_text(encoding="utf-8"))
+    snapshot["source_context"] = {
+        DIAGNOSTIC_SOURCE_ID: {
+            "schema_version": 1,
+            "helper": {
+                "config_entry_id": HELPER_CONFIG_ENTRY_ID,
+                "config_sha256": HELPER_CONFIG_SHA256,
+                "entity_id": HELPER_ID,
+                "device_class": "occupancy",
+                "source_entity_ids": list(CANONICAL_SOURCE_IDS),
+                "state": "off",
+                "last_changed": "2026-08-12T17:59:00Z",
+                "last_reported": "2026-08-12T17:59:00Z",
+            },
+            "signals": {
+                entity_id: {
+                    "state": "off",
+                    "last_changed": "2026-08-12T17:59:00Z",
+                    "last_reported": "2026-08-12T17:59:00Z",
+                }
+                for entity_id in SIGNAL_METADATA
+            },
+            "downstream": {
+                "entity_id": DOWNSTREAM_ID,
+                "state": "Family Room, Office",
+                "last_changed": "2026-08-12T17:59:00Z",
+                "last_reported": "2026-08-12T17:59:00Z",
+            },
+        }
+    }
+    return snapshot
+
+
 class ReceiverTests(unittest.TestCase):
+    def test_authenticated_diagnostics_get_is_sanitized_and_unauthenticated_is_denied(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            harness = ReceiverHarness(Path(temporary_directory))
+            try:
+                post_status, _ = harness.request(body=snapshot_bytes(diagnostic_snapshot()))
+                get_status, payload = harness.request(
+                    method="GET", path=DIAGNOSTICS_PATH, body=None
+                )
+                denied_status, denied = harness.request(
+                    method="GET", path=DIAGNOSTICS_PATH, body=None, secret=None
+                )
+            finally:
+                harness.close()
+        self.assertEqual(post_status, 202)
+        self.assertEqual(get_status, 200)
+        self.assertEqual(payload["schema_version"], 5)
+        self.assertEqual(payload["overall_status"], "Healthy")
+        self.assertEqual(payload["safety"]["ai_actions"], "OFF")
+        self.assertFalse(payload["safety"]["device_controls_available"])
+        serialized = json.dumps(payload, sort_keys=True)
+        for forbidden in ("transitions", "occurred_at", SECRET, "service", "token"):
+            self.assertNotIn(forbidden, serialized)
+        self.assertEqual(
+            (denied_status, denied),
+            (401, {"status": "rejected", "reason": "authentication_failed"}),
+        )
+
+    def test_diagnostics_get_fails_closed_when_report_is_missing_or_stale(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            harness = ReceiverHarness(Path(temporary_directory))
+            try:
+                missing = harness.request(method="GET", path=DIAGNOSTICS_PATH, body=None)
+                harness.request(body=snapshot_bytes(diagnostic_snapshot()))
+                harness.receiver._now = lambda: NOW + timedelta(minutes=11)
+                stale = harness.request(method="GET", path=DIAGNOSTICS_PATH, body=None)
+            finally:
+                harness.close()
+        expected = (503, {"status": "unavailable", "reason": "diagnostics_unavailable"})
+        self.assertEqual(missing, expected)
+        self.assertEqual(stale, expected)
+
+    def test_diagnostic_source_rejects_helper_drift_before_writing_report(self) -> None:
+        snapshot = diagnostic_snapshot()
+        snapshot["source_context"][DIAGNOSTIC_SOURCE_ID]["helper"]["config_sha256"] = "0" * 64
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            harness = ReceiverHarness(root)
+            try:
+                result = harness.request(body=snapshot_bytes(snapshot))
+            finally:
+                harness.close()
+            self.assertFalse((root / "signal-diagnostics.json").exists())
+        self.assertEqual(result, (422, {"status": "rejected", "reason": "invalid_snapshot"}))
     def test_receiver_has_no_ha_mcp_subprocess_or_service_call_capability(self) -> None:
         source_path = ROOT / "mac_mini" / "home_context_analytics" / "receiver.py"
         source = source_path.read_text(encoding="utf-8")
@@ -218,7 +317,10 @@ class ReceiverTests(unittest.TestCase):
         rendered_fp300_entities = set(
             re.findall(r'^\s+"([^"]+)": \{\'state\':', draft, re.MULTILINE)
         )
-        self.assertEqual(rendered_fp300_entities, set(APPROVED_ENTITIES))
+        self.assertEqual(
+            rendered_fp300_entities,
+            set(APPROVED_ENTITIES) | set(SIGNAL_METADATA),
+        )
         for required in (
             "verify_ssl: true",
             "timeout: 5",
@@ -229,11 +331,18 @@ class ReceiverTests(unittest.TestCase):
             "observer_context_id",
             'timeout: "00:00:10"',
             "Observer helper coherence proof did not complete; no snapshot was posted.",
-            "Observer was active or its completion state was unavailable; no feedback snapshot was posted.",
+            "Observer was active or its completion state was unavailable; no snapshot was posted.",
             "state_attr('automation.home_context_evening_observer', 'current')",
             "home_context_analytics/ha_export_contract.py",
             f"Observer config hash {REVIEWED_OBSERVER_CONFIG_HASH}",
             f"mode {REVIEWED_OBSERVER_MODE}",
+            "https://randys-mac-mini.tail1f233.ts.net:9443/v1/home-context/diagnostics",
+            "unique_id: home_context_signal_diagnostics",
+            "scan_interval: 60",
+            "garage-diagnostics-v1",
+            HELPER_CONFIG_ENTRY_ID,
+            HELPER_CONFIG_SHA256,
+            "minutes: \"/5\"",
         ):
             self.assertIn(required, draft)
         self.assertNotIn("REPLACE_WITH_", draft)
@@ -255,6 +364,8 @@ class ReceiverTests(unittest.TestCase):
         )
         for forbidden in ("light.turn_on", "lock.unlock", "ai_actions_enabled.turn_on"):
             self.assertNotIn(forbidden, draft)
+        self.assertEqual(draft.count("X-Home-Context-Secret: !secret home_context_receiver_secret"), 2)
+        self.assertGreaterEqual(draft.count("id: diagnostics"), 2)
 
     def test_ha_draft_observer_gate_structurally_matches_python_mirror(self) -> None:
         draft = (
@@ -262,7 +373,7 @@ class ReceiverTests(unittest.TestCase):
         ).read_text(encoding="utf-8")
         observer_branch = draft.split(
             '- conditions: "{{ trigger.id == \'observer\' }}"', 1
-        )[1].split('- conditions: "{{ trigger.id == \'feedback\' }}"', 1)[0]
+        )[1].split('- conditions: "{{ trigger.id in [\'feedback\', \'diagnostics\'] }}"', 1)[0]
         gate_expressions = re.findall(
             r"(?:wait_template|value_template): >-\n\s+\{\{\n(.*?)\n\s+\}\}",
             observer_branch,
@@ -431,13 +542,14 @@ class ReceiverTests(unittest.TestCase):
                 cases = (
                     harness.request(body=snapshot_bytes(), secret=None),
                     harness.request(method="GET", body=None),
+                    harness.request(method="POST", path=DIAGNOSTICS_PATH, body=b"{}"),
                     harness.request(path="/wrong", body=snapshot_bytes()),
                     harness.request(body=snapshot_bytes(), content_type="text/plain"),
                     harness.request(body=b"{}", declared_length=MAX_BODY_BYTES + 1),
                 )
             finally:
                 harness.close()
-        self.assertEqual([status for status, _ in cases], [401, 405, 404, 415, 413])
+        self.assertEqual([status for status, _ in cases], [401, 405, 405, 404, 415, 413])
         rendered = json.dumps(cases)
         self.assertNotIn(SECRET, rendered)
         self.assertNotIn("Working", rendered)

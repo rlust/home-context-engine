@@ -15,8 +15,9 @@ subprocess fetch, network import, or service-call capability.
 
 Phase 3.4 adds the selected **HA-originated push receiver**. It is a stdlib-only
 HTTP server that binds explicitly to `127.0.0.1`, accepts one authenticated POST
-path, and passes only a complete validated snapshot to the same normalizer. In
-the future production shape, tailnet-only HTTPS terminates at Tailscale Serve
+path plus one authenticated sanitized diagnostics GET path, and passes only a
+complete validated snapshot to the same normalizer. In the production shape,
+tailnet-only HTTPS terminates at Tailscale Serve
 and Serve proxies to this loopback listener. The receiver never stores an HA
 URL, HA token, MCP path, or capability to call Home Assistant or a device.
 
@@ -50,8 +51,10 @@ separate owner-authorized gates.
 
 ## Phase 3.4 receiver contract (built, not deployed)
 
-The only accepted route is `POST /v1/home-context/snapshot`. Every other path
-returns 404 and every other method returns 405. Requests require:
+The write route is `POST /v1/home-context/snapshot`. The read-only return route
+is `GET /v1/home-context/diagnostics`. Every other path returns 404 and every
+other method/route pairing returns 405. Both routes require the same dedicated
+secret header; POST requests additionally require:
 
 - `Content-Type: application/json`;
 - an exact `Content-Length` from 1 through 65,536 bytes;
@@ -77,6 +80,30 @@ response. A created record returns 202 accepted, including only counts/booleans;
 an accepted feedback audit failure sets `audit_visible: true`. Authentication,
 shape, timestamp, method, path, media-type, size, timeout, and backpressure
 failures use fixed reason codes without private data.
+
+The optional `garage-diagnostics-v1` source lane is an exact live-reviewed
+allowlist: the Garage Occupied helper/config digest, its three canonical source
+entities, the same-device event-style output retained only for comparison, and
+the downstream Home Active Room state. It accepts only state and source
+timestamps. Device IDs, semantics, and the repaired helper template are pinned
+locally from Newark registry/config readback; drift rejects the whole snapshot
+until it is reviewed. The Mac accumulates at most 64 state transitions per
+signal in a private SQLite file, runs the schema-5 detector locally, and atomically
+writes a sanitized report with no raw transition history.
+
+The diagnostics GET returns only schema, generated/observed/fresh-until times,
+overall status, issue count, one bounded issue-card payload, explicit AI Actions
+OFF/no-device-control safety metadata, and privacy flags. Missing, malformed,
+non-private, oversized, future-dated, or older-than-ten-minute reports return a
+fixed `503 diagnostics_unavailable`; missing/wrong credentials return fixed
+`401 authentication_failed`. The report/database remain mode `0600`.
+
+The review HA draft adds a RESTful sensor polling this endpoint every 60 seconds.
+HTTP failure makes `sensor.home_context_signal_diagnostics` unavailable instead
+of preserving stale health. The snapshot automation also exports the bounded
+Garage lane on source/helper/downstream changes and every five minutes. It waits
+for the Observer to be inactive, calls no device service, and the Mac still
+rejects every snapshot unless `input_boolean.ai_actions_enabled` is OFF.
 
 The review-only HA draft is
 `home_assistant/home_context_snapshot_push.yaml.example`. It renders exactly the

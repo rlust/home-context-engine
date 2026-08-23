@@ -65,6 +65,8 @@ def build_parser() -> argparse.ArgumentParser:
     receiver.add_argument("--replay-database", required=True, type=Path)
     receiver.add_argument("--state-database", required=True, type=Path)
     receiver.add_argument("--output", required=True, type=Path)
+    receiver.add_argument("--diagnostics-database", required=True, type=Path)
+    receiver.add_argument("--diagnostics-output", required=True, type=Path)
 
     report = commands.add_parser("report", help="produce deterministic local aggregates")
     report.add_argument("--database", required=True, type=Path)
@@ -148,6 +150,8 @@ def main(argv: list[str] | None = None) -> int:
                 replay_database=args.replay_database,
                 normalizer_database=args.state_database,
                 output=args.output,
+                diagnostics_database=args.diagnostics_database,
+                diagnostics_output=args.diagnostics_output,
             )
             server = build_server(args.bind, args.port, receiver_service)
             previous_term = signal.getsignal(signal.SIGTERM)

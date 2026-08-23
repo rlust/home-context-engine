@@ -18,6 +18,10 @@
     <string>REPLACE_WITH_LOCAL_PRIVATE_DIRECTORY/normalizer.sqlite3</string>
     <string>--output</string>
     <string>REPLACE_WITH_LOCAL_PRIVATE_DIRECTORY/normalized.jsonl</string>
+    <string>--diagnostics-database</string>
+    <string>REPLACE_WITH_LOCAL_PRIVATE_DIRECTORY/diagnostics.sqlite3</string>
+    <string>--diagnostics-output</string>
+    <string>REPLACE_WITH_LOCAL_PRIVATE_DIRECTORY/signal-diagnostics.json</string>
   </array>
   <key>WorkingDirectory</key>
   <string>REPLACE_WITH_REPOSITORY_WORKTREE</string>
