@@ -404,6 +404,43 @@ absent, reporting cannot mutate SQLite, retention works, and a Mac mini manual
 run reproduces the package tests. Those are software-safety criteria, **not**
 evidence that the household classifier is accurate.
 
+## Signal diagnostics and helper-repair transaction
+
+`home_context_analytics.diagnostics` adds a schema-5, local-only diagnostic
+artifact for derived Home Context helpers. Its input contract contains only the
+affected helper, bounded binary-signal metadata, same-device identity, and a
+short transition window. Report output retains summarized evidence but omits
+raw transition history and sensitive household fields.
+
+The detector proposes a replacement only when one candidate is on the same
+device, has compatible motion/occupancy semantics, is fresh, and has completed
+at least two on-to-off cycles. Name-only, stale, single-cycle, or multiple
+candidate matches do not produce a repair. The canonical Garage incident is
+replayed offline from `fixtures/garage_signal_replay.json`; production must not
+be deliberately broken to test the detector.
+
+Required-source age is fail-closed only when that source has an explicit
+positive `max_age_seconds`; stable OFF binary inputs otherwise remain valid.
+Replacement candidates always use the stricter fresh-update window.
+
+`home_context_analytics.repair.execute_helper_repair` is dry-run by default. A
+write requires the exact issue ID plus a durable owner-approval reference, AI
+Actions OFF, fresh matching evidence, a fetch-before-write helper definition,
+and a fresh config hash. The client protocol exposes only helper fetch/update
+operations. Successful readback preserves the config entry, entity ID, name,
+device class, unrelated inputs, and consumers; failure triggers restoration of
+the exact fetched definition. A successful configuration write remains
+`Verifying` until the physical Garage PIR ON-to-clear canary is observed.
+
+`append_repair_audit` appends value-bounded transaction events to an owner-only
+`0600` JSONL file. It does not persist helper templates. The offline dashboard
+design at `dashboard/home_context_signal_issues_preview.json` is a complete,
+full-width sections view for mobile and desktop. Its Markdown fallback is
+intentional because the card must render a variable-length evidence narrative
+and lifecycle without adding an unapproved custom template. It exposes the
+detection/proposal/approval/verification/resolution/rollback lifecycle and
+contains no HA service action.
+
 The report marks a drift comparison ready only when both adjacent windows have
 at least 20 reviewed episodes. Any later Phase 4 proposal still needs the agreed
 human evidence gate: at least 50 reviewed episodes overall, at least 20 for the

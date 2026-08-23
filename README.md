@@ -78,7 +78,7 @@ automations/   HA config-API JSON:
                  home_context_mark_wrong .......... Phase 3: log a "that was wrong" correction
                  home_context_sync_bed_time ....... peripheral house-mode ↔ bed_time sync
 helpers/       Template + group + input helper definitions (HELPERS.md)
-dashboard/     The "Home Context" Lovelace view (sanitized JSON)
+dashboard/     The "Home Context" Lovelace view and offline signal-issue card design
 docs/          PLAN.md (working log) and VISION_ROADMAP.md (north star)
 ```
 
