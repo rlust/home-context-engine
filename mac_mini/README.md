@@ -416,8 +416,13 @@ The detector proposes a replacement only when one candidate is on the same
 device, has compatible motion/occupancy semantics, is fresh, and has completed
 at least two on-to-off cycles. Name-only, stale, single-cycle, or multiple
 candidate matches do not produce a repair. The canonical Garage incident is
-replayed offline from `fixtures/garage_signal_replay.json`; production must not
-be deliberately broken to test the detector.
+replayed offline from `fixtures/garage_signal_replay.json`. The first live
+canary failure is retained in `fixtures/garage_failed_canary_replay.json`, where
+the configured replacement is older than its required freshness window and is
+therefore `Verification failed`, never `Resolved`. The repaired source's two
+complete canary cycles are retained in
+`fixtures/garage_repaired_two_cycle_replay.json`. Production must not be
+deliberately broken to test the detector.
 
 Required-source age is fail-closed only when that source has an explicit
 positive `max_age_seconds`; stable OFF binary inputs otherwise remain valid.

@@ -1,0 +1,71 @@
+{
+  "schema_version": 5,
+  "observed_at": "2026-08-23T14:28:23Z",
+  "helper": {
+    "config_entry_id": "01KZHASWE6S7W7NE177MHX89AF",
+    "entity_id": "binary_sensor.garage_occupied",
+    "name": "Garage Occupied",
+    "device_class": "occupancy",
+    "state": "off",
+    "template": "{{ is_state('binary_sensor.pir_motion_sensor_2_sensor_state_motion','on') or is_state('binary_sensor.gdo1_motion','on') or is_state('binary_sensor.grgdo1_motion','on') }}",
+    "source_entity_ids": [
+      "binary_sensor.pir_motion_sensor_2_sensor_state_motion",
+      "binary_sensor.gdo1_motion",
+      "binary_sensor.grgdo1_motion"
+    ],
+    "consumers": ["sensor.home_active_room"]
+  },
+  "signals": [
+    {
+      "entity_id": "binary_sensor.pir_motion_sensor_2_motion_detection",
+      "device_id": "garage-pir-device",
+      "device_class": "motion",
+      "semantic": "event",
+      "required": false,
+      "max_age_seconds": null,
+      "state": "off",
+      "last_changed": "2026-08-23T14:28:22.553000Z",
+      "last_updated": "2026-08-23T14:28:22.553000Z",
+      "transitions": [
+        {"occurred_at": "2026-08-23T14:27:00Z", "state": "on"},
+        {"occurred_at": "2026-08-23T14:28:22.553000Z", "state": "off"}
+      ]
+    },
+    {
+      "entity_id": "binary_sensor.pir_motion_sensor_2_sensor_state_motion",
+      "device_id": "garage-pir-device",
+      "device_class": "motion",
+      "semantic": "state",
+      "required": true,
+      "max_age_seconds": 300,
+      "state": "off",
+      "last_changed": "2026-08-23T06:01:51Z",
+      "last_updated": "2026-08-23T06:01:51Z",
+      "transitions": []
+    },
+    {
+      "entity_id": "binary_sensor.gdo1_motion",
+      "device_id": "garage-door-one",
+      "device_class": "motion",
+      "semantic": "state",
+      "required": true,
+      "max_age_seconds": null,
+      "state": "off",
+      "last_changed": "2026-08-23T13:32:00Z",
+      "last_updated": "2026-08-23T13:32:00Z",
+      "transitions": []
+    },
+    {
+      "entity_id": "binary_sensor.grgdo1_motion",
+      "device_id": "garage-door-two",
+      "device_class": "motion",
+      "semantic": "state",
+      "required": true,
+      "max_age_seconds": null,
+      "state": "off",
+      "last_changed": "2026-08-23T13:32:00Z",
+      "last_updated": "2026-08-23T13:32:00Z",
+      "transitions": []
+    }
+  ]
+}

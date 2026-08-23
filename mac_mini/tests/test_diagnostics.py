@@ -20,6 +20,8 @@ from mac_mini.home_context_analytics.diagnostics import (
 
 ROOT = Path(__file__).resolve().parents[2]
 FIXTURE = ROOT / "mac_mini" / "fixtures" / "garage_signal_replay.json"
+FAILED_CANARY_FIXTURE = ROOT / "mac_mini" / "fixtures" / "garage_failed_canary_replay.json"
+REPAIRED_CANARY_FIXTURE = ROOT / "mac_mini" / "fixtures" / "garage_repaired_two_cycle_replay.json"
 
 
 class DiagnosticTests(unittest.TestCase):
@@ -83,6 +85,35 @@ class DiagnosticTests(unittest.TestCase):
         payload["signals"][1]["last_updated"] = "2026-08-23T13:00:00Z"
         findings = detect_signal_issues(DiagnosticReplay.from_payload(payload))
         self.assertEqual(findings, ())
+
+    def test_live_failed_canary_surfaces_current_replacement_as_stale(self) -> None:
+        replay = DiagnosticReplay.from_payload(
+            json.loads(FAILED_CANARY_FIXTURE.read_text(encoding="utf-8"))
+        )
+        findings = detect_signal_issues(replay)
+        self.assertEqual(len(findings), 1)
+        finding = findings[0]
+        self.assertEqual(finding.status, IssueStatus.INVESTIGATE)
+        self.assertEqual(finding.issue_codes, (IssueCode.REQUIRED_SOURCE_UNHEALTHY,))
+        self.assertEqual(
+            finding.suspect_source,
+            "binary_sensor.pir_motion_sensor_2_sensor_state_motion",
+        )
+        self.assertEqual(finding.suspect_age_seconds, 30392)
+        self.assertIsNone(finding.proposal)
+
+    def test_repaired_two_cycle_canary_is_fresh_and_has_no_open_issue(self) -> None:
+        replay = DiagnosticReplay.from_payload(
+            json.loads(REPAIRED_CANARY_FIXTURE.read_text(encoding="utf-8"))
+        )
+        source = replay.signals[0]
+        self.assertEqual(source.completed_cycles(), 2)
+        self.assertEqual(source.state, "off")
+        self.assertEqual(replay.helper.state, "off")
+        self.assertEqual(replay.helper.consumers, ("sensor.home_active_room",))
+        self.assertEqual(detect_signal_issues(replay), ())
+        report = diagnostic_report_payload(replay, ())
+        self.assertEqual(report["overall_status"], "Healthy")
 
     def test_ambiguous_candidates_remain_investigate_without_proposal(self) -> None:
         payload = self.replay_payload()
