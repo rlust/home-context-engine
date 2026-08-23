@@ -15,14 +15,17 @@ from mac_mini.home_context_analytics.diagnostics import (
 )
 from mac_mini.home_context_analytics.repair import (
     ManagedHelper,
+    PhysicalCanaryObservation,
     RepairTransactionError,
     append_repair_audit,
     execute_helper_repair,
+    verify_physical_canary,
 )
 
 
 ROOT = Path(__file__).resolve().parents[2]
 FIXTURE = ROOT / "mac_mini" / "fixtures" / "garage_signal_replay.json"
+CANARY_FIXTURE = ROOT / "mac_mini" / "fixtures" / "garage_canary_lifecycle.json"
 
 
 class FakeHelperClient:
@@ -97,6 +100,19 @@ class RepairTests(unittest.TestCase):
 
     def finding(self):
         return detect_signal_issues(self.replay())[0]
+
+    def canary_observation(self, key: str) -> PhysicalCanaryObservation:
+        payload = json.loads(CANARY_FIXTURE.read_text(encoding="utf-8"))[key]
+        return PhysicalCanaryObservation(
+            observed_at=datetime.fromisoformat(payload["observed_at"].replace("Z", "+00:00")),
+            replacement_last_updated=datetime.fromisoformat(
+                payload["replacement_last_updated"].replace("Z", "+00:00")
+            ),
+            replacement_state=payload["replacement_state"],
+            helper_state=payload["helper_state"],
+            replacement_clear_cycles=payload["replacement_clear_cycles"],
+            helper_clear_cycles=payload["helper_clear_cycles"],
+        )
 
     def test_dry_run_is_default_and_captures_backup_without_write(self) -> None:
         replay = self.replay()
@@ -174,6 +190,38 @@ class RepairTests(unittest.TestCase):
         self.assertEqual(result.readback.consumers, result.backup.consumers)
         self.assertNotEqual(result.readback.config_hash, result.backup.config_hash)
         self.assertEqual([event.stage for event in result.audit][-2:], ["readback", "canary"])
+
+    def test_stale_canary_is_verification_failed_not_resolved(self) -> None:
+        replay = self.replay()
+        finding = detect_signal_issues(replay)[0]
+        result = execute_helper_repair(
+            finding, FakeHelperClient(replay), dry_run=False,
+            approved_issue_id=finding.issue_id, approval_reference="owner-event-123",
+        )
+        failed = verify_physical_canary(
+            result,
+            self.canary_observation("failed_canary"),
+        )
+        self.assertEqual(failed.status, IssueStatus.VERIFICATION_FAILED)
+        self.assertNotEqual(failed.status, IssueStatus.RESOLVED)
+        self.assertIn("stale", failed.verification_result)
+        self.assertEqual(failed.audit[-1].stage, "verification")
+        self.assertEqual(failed.audit[-1].result, "failed")
+
+    def test_two_fresh_canary_cycles_resolve_transaction(self) -> None:
+        replay = self.replay()
+        finding = detect_signal_issues(replay)[0]
+        result = execute_helper_repair(
+            finding, FakeHelperClient(replay), dry_run=False,
+            approved_issue_id=finding.issue_id, approval_reference="owner-event-123",
+        )
+        resolved = verify_physical_canary(
+            result,
+            self.canary_observation("resolved_canary"),
+        )
+        self.assertEqual(resolved.status, IssueStatus.RESOLVED)
+        self.assertIn("2+", resolved.verification_result)
+        self.assertEqual(resolved.audit[-1].result, "verified")
 
     def test_unrelated_readback_change_automatically_rolls_back_exact_backup(self) -> None:
         replay = self.replay()

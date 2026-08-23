@@ -14,6 +14,7 @@ _STAGE_STATUS = {
     "proposal_ready": IssueStatus.REPAIR_PROPOSED,
     "approval_pending": IssueStatus.APPROVAL_NEEDED,
     "verifying": IssueStatus.VERIFYING,
+    "verification_failed": IssueStatus.VERIFICATION_FAILED,
     "resolved": IssueStatus.RESOLVED,
     "rolled_back": IssueStatus.INVESTIGATE,
 }
@@ -33,10 +34,10 @@ class IssueCardState:
             raise ValueError(f"unsupported issue-card stage: {self.stage}")
         if self.updated_at.tzinfo is None:
             raise ValueError("updated_at must include a timezone")
-        if self.stage in {"verifying", "resolved"} and not self.approval_reference:
+        if self.stage in {"verifying", "verification_failed", "resolved"} and not self.approval_reference:
             raise ValueError("verification and resolution require an approval reference")
-        if self.stage == "resolved" and not self.verification_result:
-            raise ValueError("resolution requires a verification result")
+        if self.stage in {"verification_failed", "resolved"} and not self.verification_result:
+            raise ValueError("verification failure and resolution require a verification result")
         if self.stage == "rolled_back" and not self.rollback_result:
             raise ValueError("rolled_back requires a rollback result")
 
@@ -55,10 +56,23 @@ def build_issue_card_payload(state: IssueCardState) -> dict[str, Any]:
         ("Resolution", "resolved"),
         ("Rollback", "rolled_back"),
     )
-    current_index = [item[1] for item in stages].index(state.stage)
+    current_index = (
+        [item[1] for item in stages].index(state.stage)
+        if state.stage != "verification_failed"
+        else None
+    )
     lifecycle = []
     for index, (label, key) in enumerate(stages):
-        if key == "rolled_back":
+        if state.stage == "verification_failed":
+            if key in {"detected", "proposal_ready", "approval_pending"}:
+                phase_state = "complete"
+            elif key == "verifying":
+                phase_state = "failed"
+            elif key == "resolved":
+                phase_state = "not_reached"
+            else:
+                phase_state = "available"
+        elif key == "rolled_back":
             phase_state = "complete" if state.stage == "rolled_back" else "available"
         elif state.stage == "rolled_back":
             phase_state = "complete" if key in {"detected", "proposal_ready", "approval_pending", "verifying"} else "not_reached"
@@ -87,6 +101,7 @@ def build_issue_card_payload(state: IssueCardState) -> dict[str, Any]:
         },
         "verification": {
             "result": state.verification_result,
+            "failed": state.stage == "verification_failed",
             "physical_canary_pending": state.stage == "verifying" and state.verification_result is None,
         },
         "rollback": {"result": state.rollback_result},

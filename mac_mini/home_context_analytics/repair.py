@@ -7,7 +7,7 @@ provide a narrowly scoped managed-helper client.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 import json
 import os
@@ -88,6 +88,7 @@ class RepairTransactionResult:
     readback: ManagedHelper
     audit: tuple[AuditEvent, ...]
     physical_canary: str | None
+    verification_result: str | None = None
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -101,7 +102,81 @@ class RepairTransactionResult:
             "readback_hash": self.readback.config_hash,
             "audit": [event.as_dict() for event in self.audit],
             "physical_canary": self.physical_canary,
+            "verification_result": self.verification_result,
         }
+
+
+@dataclass(frozen=True)
+class PhysicalCanaryObservation:
+    """Sanitized end-to-end evidence from an owner-observed canary."""
+
+    observed_at: datetime
+    replacement_last_updated: datetime
+    replacement_state: str
+    helper_state: str
+    replacement_clear_cycles: int
+    helper_clear_cycles: int
+
+    def __post_init__(self) -> None:
+        for value in (self.observed_at, self.replacement_last_updated):
+            if value.tzinfo is None:
+                raise ValueError("canary timestamps must include a timezone")
+        valid_states = {"on", "off", "unknown", "unavailable"}
+        if self.replacement_state not in valid_states or self.helper_state not in valid_states:
+            raise ValueError("canary states must be binary Home Assistant states")
+        if self.replacement_clear_cycles < 0 or self.helper_clear_cycles < 0:
+            raise ValueError("canary cycle counts cannot be negative")
+
+
+def verify_physical_canary(
+    result: RepairTransactionResult,
+    observation: PhysicalCanaryObservation,
+    *,
+    freshness_window_seconds: int = 300,
+    minimum_clear_cycles: int = 2,
+) -> RepairTransactionResult:
+    """Close a written repair only from fresh, repeated end-to-end evidence.
+
+    A stale candidate is explicitly ``Verification failed`` and is never
+    promoted to ``Resolved`` merely because helper readback succeeded.
+    """
+
+    if result.status != IssueStatus.VERIFYING or result.dry_run or not result.wrote_configuration:
+        raise ValueError("only a written transaction awaiting canary verification can be closed")
+    if freshness_window_seconds < 1 or minimum_clear_cycles < 1:
+        raise ValueError("canary verification thresholds must be positive")
+
+    events = list(result.audit)
+    age_seconds = int((observation.observed_at - observation.replacement_last_updated).total_seconds())
+    fresh = 0 <= age_seconds <= freshness_window_seconds
+    complete = (
+        fresh
+        and observation.replacement_state == "off"
+        and observation.helper_state == "off"
+        and observation.replacement_clear_cycles >= minimum_clear_cycles
+        and observation.helper_clear_cycles >= minimum_clear_cycles
+    )
+    if not fresh:
+        detail = (
+            "Verification failed: replacement source is stale at canary time "
+            f"({max(0, age_seconds)} seconds old; limit {freshness_window_seconds})."
+        )
+        _audit(events, "verification", "failed", detail)
+        return replace(result, status=IssueStatus.VERIFICATION_FAILED, audit=tuple(events), verification_result=detail)
+    if not complete:
+        detail = (
+            "Verification failed: fresh canary did not produce the required "
+            f"{minimum_clear_cycles} complete replacement/helper clear cycles."
+        )
+        _audit(events, "verification", "failed", detail)
+        return replace(result, status=IssueStatus.VERIFICATION_FAILED, audit=tuple(events), verification_result=detail)
+
+    detail = (
+        "Verification passed: fresh replacement source and Garage Occupied "
+        f"completed {minimum_clear_cycles}+ end-to-end clear cycles."
+    )
+    _audit(events, "verification", "verified", detail)
+    return replace(result, status=IssueStatus.RESOLVED, audit=tuple(events), verification_result=detail)
 
 
 def append_repair_audit(

@@ -20,6 +20,7 @@ class IssueStatus(str, Enum):
     REPAIR_PROPOSED = "Repair proposed"
     APPROVAL_NEEDED = "Approval needed"
     VERIFYING = "Verifying"
+    VERIFICATION_FAILED = "Verification failed"
     RESOLVED = "Resolved"
 
 
