@@ -3,11 +3,29 @@
 Sanitized export of the project's running log. Internal IPs, the Apple ID, and
 device/account identifiers have been replaced with placeholders.
 
+## Verified deployment status — 2026-08-24
+
+- The private Mac mini receiver is running the diagnostics return path from
+  commit `87a85d0`, bound only to loopback behind the existing private HTTPS
+  route. BriefDash remains on its separate existing route.
+- Newark Home Assistant is running with
+  `sensor.home_context_signal_diagnostics` Healthy on schema 5, zero issues,
+  local-only processing, and AI Actions OFF.
+- The live `home-command/context` view contains a read-only signal diagnostics
+  panel plus a persistent `Last recorded feedback` receipt directly beneath
+  Confirm / Wrong / Unsure. Desktop and responsive-mobile QA passed.
+- The latest Confirm was recorded as Active / Working at 88% in Office;
+  confirmations total 32. The private aggregate review remains below the
+  Phase 4 advancement gates, so device-capable actions remain locked.
+- Full credential-free rollout evidence, hashes, rollback instructions, and
+  the current advancement decision are versioned under
+  `docs/operations/`.
+
 ## Current system
 
 - **Context helpers:** `home_context_mode`, `home_current_activity`, `home_context_confidence`, `home_context_summary`, `home_next_likely_activity`, `home_context_guest_mode`, `sleep_no_lights`; `ai_context_enabled` (ON), `ai_actions_enabled` (**OFF — safety lock**).
 - **Presence:** `sensor.residents_present`; `person.randy` (carried iPhone), `person.kim` (carried iPhone Pro Max via iCloud3), `person.alex`.
-- **11 room-occupancy helpers** + `binary_sensor.home_room_presence` + `sensor.home_active_room`.
+- **12 room-occupancy helpers** + `binary_sensor.home_room_presence` + `sensor.home_active_room`.
 - **Signals:** `residents_home`, `tv_active` (LG TV only), `music_playing` (music AND TV off), `night_time`, `exterior_door_open`, `recent_arrival`.
 - **Observer:** `automation.home_context_evening_observer` — startup, every 5 min, or on any room/signal/door change. Writes only Home Context helpers; never controls devices.
 - **Branch order:** Sleeping → Entertaining → Away → Working → Cooking → Watching TV → Listening to Music → Waking → Active → Unknown.
@@ -27,6 +45,9 @@ device/account identifiers have been replaced with placeholders.
 
 ### Dashboard
 - Full professional redesign — hero status card + 7 logical sections (Home Context · Controls & Safety · Engine Health · Who's Home · Suggestions · Room Presence · Context Signals · Last 24 Hours). Observe-only. Engine-health/stall monitoring added.
+- Added a fail-closed signal-diagnostics panel and a persistent visual receipt
+  for Confirm / Wrong / Unsure feedback. Both surfaces are read-only and expose
+  no repair or device-control action.
 
 ### Phase 4 audit + integration
 - Suggestion layer (3 automations): `dynamic_suggestions` (text only), `dismiss_suggestion` (feedback only), `approve_denon_music_lighting` (only device-capable).
@@ -50,7 +71,10 @@ device/account identifiers have been replaced with placeholders.
 - Two YAML-defined duplicate person entities need manual removal + reload.
 - Consider consolidating the two Apple location integrations onto iCloud3.
 - Hardware wishlist: dining-room presence, kitchen appliance power, living-room presence.
-- Phase 3 measurement instrumentation (correction path); per-person activity attribution; stale-evidence confidence decay; shower + laundry detection.
+- Continue Phase 3 feedback until at least 50 reviewed outcomes and all
+  calibration, target-sample, precision, signal-health, and drift gates pass.
+- Per-person activity attribution; stale-evidence confidence decay; shower +
+  laundry detection.
 
 **Safety gate `input_boolean.ai_actions_enabled` remains OFF.** The one
 device-capable automation (approve music lighting) is gated behind it.

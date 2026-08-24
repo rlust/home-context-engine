@@ -78,17 +78,27 @@ automations/   HA config-API JSON:
                  home_context_mark_wrong .......... Phase 3: log a "that was wrong" correction
                  home_context_sync_bed_time ....... peripheral house-mode ↔ bed_time sync
 helpers/       Template + group + input helper definitions (HELPERS.md)
-dashboard/     The "Home Context" Lovelace view and offline signal-issue card design
-docs/          PLAN.md (working log) and VISION_ROADMAP.md (north star)
+dashboard/     The "Home Context" Lovelace view, current live-view snapshot,
+               and offline signal-issue card design
+docs/          PLAN.md (working log), VISION_ROADMAP.md (north star), and
+               operations/ (credential-free deployment plans and evidence)
 ```
 
 ## Roadmap (abridged — see docs/VISION_ROADMAP.md)
 
 - **Phase 1 / 1.5 / 1.6** ✅ situational + room-level awareness (12 rooms)
 - **Phase 2** ✅ activity vocabulary (Working / Cooking / Music / TV)
-- **Phase 3** ◀ measurement — a "that was wrong" correction path
+- **Phase 3** ◀ measurement — Confirm / Wrong / Unsure feedback, private
+  aggregate scoring, and signal diagnostics
 - **Phase 4** suggest → then adapt (started; observe-only)
 - **Phase 5** learn typical patterns
+
+Phase 4 remains locked until the private report has at least 50 reviewed
+outcomes, an exact target activity has at least 20 reviewed samples and at
+least 90% precision, calibration error is at most 10 percentage points, and
+required-signal health plus drift gates pass. The latest credential-free
+aggregate and diagnostics deployment evidence is in
+`docs/operations/`.
 
 ## Design principles
 

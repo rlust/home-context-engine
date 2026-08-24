@@ -1,0 +1,1244 @@
+{
+  "captured_at": "2026-08-24T08:55:00-04:00",
+  "source": "Newark Home Assistant managed dashboard API",
+  "url_path": "home-command",
+  "view_path": "context",
+  "view_index": 8,
+  "config_hash": "4326404e8bf42f92",
+  "view": {
+    "title": "Home Context",
+    "path": "context",
+    "icon": "mdi:brain",
+    "type": "sections",
+    "max_columns": 4,
+    "badges": [
+      {
+        "type": "entity",
+        "entity": "binary_sensor.home_context_engine_stalled",
+        "name": "STALLED",
+        "show_name": true,
+        "show_state": true,
+        "color": "red",
+        "visibility": [
+          {
+            "condition": "state",
+            "entity": "binary_sensor.home_context_engine_stalled",
+            "state": "on"
+          }
+        ]
+      },
+      {
+        "type": "entity",
+        "entity": "input_boolean.ai_actions_enabled",
+        "name": "AI Actions",
+        "show_name": true,
+        "show_state": true,
+        "color": "grey"
+      },
+      {
+        "type": "entity",
+        "show_name": true,
+        "show_state": true,
+        "show_icon": true,
+        "entity": "device_tracker.kim_apple_watch",
+        "state_content": "state",
+        "name": {
+          "type": "entity"
+        }
+      },
+      {
+        "type": "entity",
+        "entity": "device_tracker.rc_iphone",
+        "show_name": true
+      }
+    ],
+    "sections": [
+      {
+        "type": "grid",
+        "column_span": 4,
+        "background": {
+          "color": "#007aff",
+          "opacity": 5
+        },
+        "cards": [
+          {
+            "type": "vertical-stack",
+            "grid_options": {
+              "columns": "full",
+              "rows": "auto"
+            },
+            "cards": [
+              {
+                "type": "custom:bubble-card",
+                "card_type": "button",
+                "button_type": "state",
+                "entity": "input_select.home_current_activity",
+                "name": "Home Context",
+                "icon": "mdi:brain",
+                "show_name": true,
+                "show_state": true,
+                "show_last_updated": true,
+                "scrolling_effect": true,
+                "card_layout": "large-2-rows",
+                "rows": 2,
+                "visibility": [
+                  {
+                    "condition": "screen",
+                    "media_query": "(min-width: 768px)"
+                  }
+                ],
+                "sub_button": {
+                  "main": [
+                    {
+                      "group": [
+                        {
+                          "entity": "input_number.home_context_confidence",
+                          "name": "Confidence",
+                          "icon": "mdi:gauge",
+                          "show_state": true,
+                          "show_name": true,
+                          "show_background": false
+                        },
+                        {
+                          "entity": "input_select.home_context_mode",
+                          "name": "Mode",
+                          "icon": "mdi:home-analytics",
+                          "show_state": true,
+                          "show_name": true,
+                          "show_background": false
+                        },
+                        {
+                          "entity": "sensor.home_active_room",
+                          "name": "Room",
+                          "icon": "mdi:home-map-marker",
+                          "show_state": true,
+                          "show_name": true,
+                          "show_background": false
+                        }
+                      ],
+                      "buttons_layout": "inline"
+                    }
+                  ],
+                  "main_layout": "inline"
+                },
+                "styles": ":host { --bubble-button-main-background-color: linear-gradient(135deg, rgba(0,122,255,.22), rgba(88,86,214,.13)); --bubble-accent-color: #007aff; --bubble-button-border-radius: 26px; --bubble-button-box-shadow: 0 14px 34px rgba(0,122,255,.16); } .bubble-name { font-size: 21px !important; font-weight: 900 !important; letter-spacing: -.02em; } .bubble-state { font-size: 18px !important; font-weight: 800 !important; } .bubble-sub-button { min-height: 36px !important; border-radius: 14px !important; }"
+              },
+              {
+                "type": "custom:bubble-card",
+                "card_type": "button",
+                "button_type": "state",
+                "entity": "input_select.home_current_activity",
+                "name": "Home Context",
+                "icon": "mdi:brain",
+                "show_name": true,
+                "show_state": true,
+                "show_last_updated": true,
+                "card_layout": "large-2-rows",
+                "rows": 2,
+                "visibility": [
+                  {
+                    "condition": "screen",
+                    "media_query": "(max-width: 767px)"
+                  }
+                ],
+                "styles": ":host { --bubble-button-main-background-color: linear-gradient(135deg, rgba(0,122,255,.22), rgba(88,86,214,.13)); --bubble-accent-color: #007aff; --bubble-button-border-radius: 26px; --bubble-button-box-shadow: 0 14px 34px rgba(0,122,255,.16); } .bubble-name { font-size: 20px !important; font-weight: 900 !important; } .bubble-state { font-size: 17px !important; font-weight: 800 !important; }"
+              },
+              {
+                "type": "custom:mushroom-chips-card",
+                "alignment": "center",
+                "visibility": [
+                  {
+                    "condition": "screen",
+                    "media_query": "(max-width: 767px)"
+                  }
+                ],
+                "chips": [
+                  {
+                    "type": "entity",
+                    "entity": "input_number.home_context_confidence",
+                    "icon": "mdi:gauge",
+                    "content_info": "state"
+                  },
+                  {
+                    "type": "entity",
+                    "entity": "input_select.home_context_mode",
+                    "icon": "mdi:home-analytics",
+                    "content_info": "state"
+                  },
+                  {
+                    "type": "entity",
+                    "entity": "sensor.home_active_room",
+                    "icon": "mdi:home-map-marker",
+                    "content_info": "state"
+                  }
+                ]
+              },
+              {
+                "type": "conditional",
+                "conditions": [
+                  {
+                    "condition": "state",
+                    "entity": "binary_sensor.home_context_engine_stalled",
+                    "state": "on"
+                  }
+                ],
+                "card": {
+                  "type": "markdown",
+                  "content": "## ⚠️ Context engine stalled\nObserver age: **{{ states('sensor.home_context_observer_age') }} minutes**. AI Actions remain **{{ states('input_boolean.ai_actions_enabled') | upper }}**."
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "grid",
+        "column_span": 4,
+        "background": {
+          "color": "#8e8e93",
+          "opacity": 4
+        },
+        "cards": [
+          {
+            "type": "heading",
+            "heading": "Rate the current context",
+            "heading_style": "subtitle",
+            "icon": "mdi:check-decagram"
+          },
+          {
+            "type": "custom:bubble-card",
+            "card_type": "button",
+            "button_type": "name",
+            "name": "Confirm",
+            "icon": "mdi:check-circle",
+            "rows": 2,
+            "button_action": {
+              "tap_action": {
+                "action": "perform-action",
+                "perform_action": "input_button.press",
+                "target": {
+                  "entity_id": "input_button.home_context_confirm"
+                }
+              }
+            },
+            "styles": ":host { --bubble-accent-color: #007aff; --bubble-button-border-radius: 22px; --bubble-button-box-shadow: 0 8px 24px rgba(15,23,42,.10); } .bubble-name { font-weight: 800 !important; letter-spacing: -.01em; } .bubble-state { font-weight: 650 !important; }",
+            "grid_options": {
+              "columns": 6,
+              "rows": 1
+            }
+          },
+          {
+            "type": "custom:bubble-card",
+            "card_type": "button",
+            "button_type": "name",
+            "name": "Wrong",
+            "icon": "mdi:close-circle",
+            "rows": 2,
+            "button_action": {
+              "tap_action": {
+                "action": "navigate",
+                "navigation_path": "#hc-correct"
+              }
+            },
+            "styles": ":host { --bubble-accent-color: #007aff; --bubble-button-border-radius: 22px; --bubble-button-box-shadow: 0 8px 24px rgba(15,23,42,.10); } .bubble-name { font-weight: 800 !important; letter-spacing: -.01em; } .bubble-state { font-weight: 650 !important; }",
+            "grid_options": {
+              "columns": 6,
+              "rows": 1
+            }
+          },
+          {
+            "type": "custom:bubble-card",
+            "card_type": "button",
+            "button_type": "name",
+            "name": "Unsure",
+            "icon": "mdi:help-circle",
+            "rows": 2,
+            "button_action": {
+              "tap_action": {
+                "action": "perform-action",
+                "perform_action": "input_button.press",
+                "target": {
+                  "entity_id": "input_button.home_context_mark_unsure"
+                }
+              }
+            },
+            "styles": ":host { --bubble-accent-color: #007aff; --bubble-button-border-radius: 22px; --bubble-button-box-shadow: 0 8px 24px rgba(15,23,42,.10); } .bubble-name { font-weight: 800 !important; letter-spacing: -.01em; } .bubble-state { font-weight: 650 !important; }",
+            "grid_options": {
+              "columns": 6,
+              "rows": 1
+            }
+          },
+          {
+            "type": "tile",
+            "entity": "input_text.home_context_last_feedback",
+            "name": "Last recorded feedback",
+            "icon": "mdi:check-decagram",
+            "state_content": [
+              "state",
+              "last_changed"
+            ],
+            "tap_action": {
+              "action": "more-info"
+            },
+            "hold_action": {
+              "action": "none"
+            },
+            "grid_options": {
+              "columns": "full",
+              "rows": "auto"
+            }
+          },
+          {
+            "type": "heading",
+            "heading": "Explore",
+            "heading_style": "subtitle",
+            "icon": "mdi:square-grid-2x2"
+          },
+          {
+            "type": "custom:bubble-card",
+            "card_type": "button",
+            "button_type": "state",
+            "entity": "sensor.residents_present",
+            "name": "People",
+            "icon": "mdi:account-multiple",
+            "show_state": true,
+            "rows": 2,
+            "button_action": {
+              "tap_action": {
+                "action": "navigate",
+                "navigation_path": "#hc-people"
+              }
+            },
+            "styles": ":host { --bubble-accent-color: #007aff; --bubble-button-border-radius: 22px; --bubble-button-box-shadow: 0 8px 24px rgba(15,23,42,.10); } .bubble-name { font-weight: 800 !important; letter-spacing: -.01em; } .bubble-state { font-weight: 650 !important; }",
+            "grid_options": {
+              "columns": 6,
+              "rows": 1
+            }
+          },
+          {
+            "type": "custom:bubble-card",
+            "card_type": "button",
+            "button_type": "state",
+            "entity": "sensor.home_active_room",
+            "name": "Rooms",
+            "icon": "mdi:floor-plan",
+            "show_state": true,
+            "rows": 2,
+            "button_action": {
+              "tap_action": {
+                "action": "navigate",
+                "navigation_path": "#hc-rooms"
+              }
+            },
+            "styles": ":host { --bubble-accent-color: #007aff; --bubble-button-border-radius: 22px; --bubble-button-box-shadow: 0 8px 24px rgba(15,23,42,.10); } .bubble-name { font-weight: 800 !important; letter-spacing: -.01em; } .bubble-state { font-weight: 650 !important; }",
+            "grid_options": {
+              "columns": 6,
+              "rows": 1
+            }
+          },
+          {
+            "type": "custom:bubble-card",
+            "card_type": "button",
+            "button_type": "state",
+            "entity": "binary_sensor.home_context_engine_stalled",
+            "name": "Signals",
+            "icon": "mdi:waveform",
+            "show_state": true,
+            "rows": 2,
+            "button_action": {
+              "tap_action": {
+                "action": "navigate",
+                "navigation_path": "#hc-signals"
+              }
+            },
+            "styles": ":host { --bubble-accent-color: #007aff; --bubble-button-border-radius: 22px; --bubble-button-box-shadow: 0 8px 24px rgba(15,23,42,.10); } .bubble-name { font-weight: 800 !important; letter-spacing: -.01em; } .bubble-state { font-weight: 650 !important; }",
+            "grid_options": {
+              "columns": 6,
+              "rows": 1
+            }
+          },
+          {
+            "type": "custom:bubble-card",
+            "card_type": "button",
+            "button_type": "state",
+            "entity": "input_number.home_context_confidence",
+            "name": "History",
+            "icon": "mdi:chart-timeline-variant",
+            "show_state": true,
+            "rows": 2,
+            "button_action": {
+              "tap_action": {
+                "action": "navigate",
+                "navigation_path": "#hc-history"
+              }
+            },
+            "styles": ":host { --bubble-accent-color: #007aff; --bubble-button-border-radius: 22px; --bubble-button-box-shadow: 0 8px 24px rgba(15,23,42,.10); } .bubble-name { font-weight: 800 !important; letter-spacing: -.01em; } .bubble-state { font-weight: 650 !important; }",
+            "grid_options": {
+              "columns": 6,
+              "rows": 1
+            }
+          },
+          {
+            "type": "heading",
+            "heading": "Controls & safety",
+            "heading_style": "subtitle",
+            "icon": "mdi:shield-check"
+          },
+          {
+            "type": "tile",
+            "entity": "input_boolean.ai_context_enabled",
+            "name": "AI Context",
+            "icon": "mdi:brain",
+            "state_content": [
+              "state",
+              "last_changed"
+            ],
+            "features_position": "inline",
+            "features": [
+              {
+                "type": "toggle"
+              }
+            ],
+            "grid_options": {
+              "columns": 6,
+              "rows": "auto"
+            }
+          },
+          {
+            "type": "tile",
+            "entity": "input_boolean.ai_actions_enabled",
+            "name": "AI Actions — Safety Lock",
+            "icon": "mdi:robot-off-outline",
+            "state_content": [
+              "state",
+              "last_changed"
+            ],
+            "features_position": "inline",
+            "features": [
+              {
+                "type": "toggle"
+              }
+            ],
+            "grid_options": {
+              "columns": 6,
+              "rows": "auto"
+            }
+          },
+          {
+            "type": "tile",
+            "entity": "automation.home_context_evening_observer",
+            "name": "Observer",
+            "icon": "mdi:eye-outline",
+            "state_content": [
+              "state",
+              "last_changed"
+            ],
+            "features_position": "inline",
+            "features": [
+              {
+                "type": "toggle"
+              }
+            ],
+            "grid_options": {
+              "columns": 6,
+              "rows": "auto"
+            }
+          },
+          {
+            "type": "tile",
+            "entity": "input_boolean.sleep_no_lights",
+            "name": "Sleep Guard",
+            "icon": "mdi:weather-night",
+            "state_content": [
+              "state",
+              "last_changed"
+            ],
+            "features_position": "inline",
+            "features": [
+              {
+                "type": "toggle"
+              }
+            ],
+            "grid_options": {
+              "columns": 6,
+              "rows": "auto"
+            }
+          },
+          {
+            "type": "tile",
+            "entity": "input_boolean.home_context_guest_mode",
+            "name": "Guest Mode",
+            "icon": "mdi:account-group",
+            "state_content": [
+              "state",
+              "last_changed"
+            ],
+            "features_position": "inline",
+            "features": [
+              {
+                "type": "toggle"
+              }
+            ],
+            "grid_options": {
+              "columns": 6,
+              "rows": "auto"
+            }
+          },
+          {
+            "type": "tile",
+            "entity": "input_boolean.party_mode",
+            "name": "Party Mode",
+            "icon": "mdi:party-popper",
+            "state_content": [
+              "state",
+              "last_changed"
+            ],
+            "features_position": "inline",
+            "features": [
+              {
+                "type": "toggle"
+              }
+            ],
+            "grid_options": {
+              "columns": 6,
+              "rows": "auto"
+            }
+          },
+          {
+            "type": "custom:bubble-card",
+            "card_type": "pop-up",
+            "hash": "#hc-correct",
+            "name": "Correct the Context",
+            "icon": "mdi:playlist-edit",
+            "popup_style": "bubble",
+            "popup_mode": "adaptive-dialog",
+            "close_on_click": false,
+            "width_desktop": "620px",
+            "show_previous_button": false,
+            "bg_blur": "18",
+            "styles": ":host { --bubble-accent-color: #007aff; }",
+            "cards": [
+              {
+                "type": "markdown",
+                "content": "### Wrong classification\nChoose the activity that is actually happening, then submit. This labels the current prediction; it does not enable device actions."
+              },
+              {
+                "type": "tile",
+                "entity": "input_select.home_context_corrected_activity",
+                "name": "Correct activity",
+                "icon": "mdi:playlist-edit",
+                "state_content": "state",
+                "features_position": "inline",
+                "features": [
+                  {
+                    "type": "select-options",
+                    "style": "dropdown"
+                  }
+                ]
+              },
+              {
+                "type": "custom:bubble-card",
+                "card_type": "button",
+                "button_type": "name",
+                "name": "Submit correction",
+                "icon": "mdi:check-bold",
+                "rows": 2,
+                "button_action": {
+                  "tap_action": {
+                    "action": "perform-action",
+                    "perform_action": "input_button.press",
+                    "target": {
+                      "entity_id": "input_button.home_context_mark_wrong"
+                    }
+                  }
+                },
+                "styles": ":host { --bubble-accent-color: #007aff; --bubble-button-border-radius: 22px; --bubble-button-box-shadow: 0 8px 24px rgba(15,23,42,.10); } .bubble-name { font-weight: 800 !important; letter-spacing: -.01em; } .bubble-state { font-weight: 650 !important; }"
+              },
+              {
+                "type": "grid",
+                "columns": 3,
+                "square": false,
+                "cards": [
+                  {
+                    "type": "tile",
+                    "entity": "counter.home_context_confirmations",
+                    "name": "Confirmed",
+                    "icon": "mdi:thumb-up-outline",
+                    "state_content": [
+                      "state",
+                      "last_changed"
+                    ]
+                  },
+                  {
+                    "type": "tile",
+                    "entity": "counter.home_context_corrections",
+                    "name": "Wrong",
+                    "icon": "mdi:thumb-down-outline",
+                    "state_content": [
+                      "state",
+                      "last_changed"
+                    ]
+                  },
+                  {
+                    "type": "tile",
+                    "entity": "counter.home_context_unsure",
+                    "name": "Unsure",
+                    "icon": "mdi:help-circle-outline",
+                    "state_content": [
+                      "state",
+                      "last_changed"
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "tile",
+                "entity": "input_text.home_context_last_feedback",
+                "name": "Last feedback",
+                "icon": "mdi:comment-check-outline",
+                "state_content": [
+                  "state",
+                  "last_changed"
+                ]
+              },
+              {
+                "type": "tile",
+                "entity": "input_datetime.home_context_measurement_start",
+                "name": "Measuring since",
+                "icon": "mdi:calendar-start",
+                "state_content": [
+                  "state",
+                  "last_changed"
+                ]
+              }
+            ]
+          },
+          {
+            "type": "custom:bubble-card",
+            "card_type": "pop-up",
+            "hash": "#hc-people",
+            "name": "Who's Home",
+            "icon": "mdi:account-multiple",
+            "popup_style": "bubble",
+            "popup_mode": "adaptive-dialog",
+            "close_on_click": false,
+            "width_desktop": "620px",
+            "show_previous_button": false,
+            "bg_blur": "18",
+            "styles": ":host { --bubble-accent-color: #007aff; }",
+            "cards": [
+              {
+                "type": "custom:bubble-card",
+                "card_type": "button",
+                "button_type": "state",
+                "entity": "sensor.residents_present",
+                "name": "Residents Present",
+                "icon": "mdi:account-multiple-check",
+                "show_state": true,
+                "show_last_updated": true,
+                "styles": ":host { --bubble-accent-color: #007aff; --bubble-button-border-radius: 22px; --bubble-button-box-shadow: 0 8px 24px rgba(15,23,42,.10); } .bubble-name { font-weight: 800 !important; letter-spacing: -.01em; } .bubble-state { font-weight: 650 !important; }"
+              },
+              {
+                "type": "grid",
+                "columns": 3,
+                "square": false,
+                "cards": [
+                  {
+                    "type": "custom:bubble-card",
+                    "card_type": "button",
+                    "button_type": "state",
+                    "entity": "person.randy",
+                    "name": "Randy",
+                    "icon": "mdi:account",
+                    "show_state": true,
+                    "show_last_updated": true,
+                    "styles": ":host { --bubble-accent-color: #007aff; --bubble-button-border-radius: 22px; --bubble-button-box-shadow: 0 8px 24px rgba(15,23,42,.10); } .bubble-name { font-weight: 800 !important; letter-spacing: -.01em; } .bubble-state { font-weight: 650 !important; }"
+                  },
+                  {
+                    "type": "custom:bubble-card",
+                    "card_type": "button",
+                    "button_type": "state",
+                    "entity": "person.kim",
+                    "name": "Kim",
+                    "icon": "mdi:account",
+                    "show_state": true,
+                    "show_last_updated": true,
+                    "styles": ":host { --bubble-accent-color: #007aff; --bubble-button-border-radius: 22px; --bubble-button-box-shadow: 0 8px 24px rgba(15,23,42,.10); } .bubble-name { font-weight: 800 !important; letter-spacing: -.01em; } .bubble-state { font-weight: 650 !important; }"
+                  },
+                  {
+                    "type": "custom:bubble-card",
+                    "card_type": "button",
+                    "button_type": "state",
+                    "entity": "person.alex",
+                    "name": "Alex",
+                    "icon": "mdi:account",
+                    "show_state": true,
+                    "show_last_updated": true,
+                    "styles": ":host { --bubble-accent-color: #007aff; --bubble-button-border-radius: 22px; --bubble-button-box-shadow: 0 8px 24px rgba(15,23,42,.10); } .bubble-name { font-weight: 800 !important; letter-spacing: -.01em; } .bubble-state { font-weight: 650 !important; }"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "custom:bubble-card",
+            "card_type": "pop-up",
+            "hash": "#hc-rooms",
+            "name": "Room Presence",
+            "icon": "mdi:floor-plan",
+            "popup_style": "bubble",
+            "popup_mode": "adaptive-dialog",
+            "close_on_click": false,
+            "width_desktop": "760px",
+            "show_previous_button": false,
+            "bg_blur": "18",
+            "styles": ":host { --bubble-accent-color: #007aff; }",
+            "cards": [
+              {
+                "type": "markdown",
+                "content": "### 12 sensed rooms\nActive-room status stays live; tap any room for details."
+              },
+              {
+                "type": "grid",
+                "columns": 2,
+                "square": false,
+                "cards": [
+                  {
+                    "type": "custom:bubble-card",
+                    "card_type": "button",
+                    "button_type": "state",
+                    "entity": "binary_sensor.family_room_occupied",
+                    "name": "Family Room",
+                    "icon": "mdi:sofa",
+                    "show_state": true,
+                    "show_last_updated": true,
+                    "styles": ":host { --bubble-accent-color: #007aff; --bubble-button-border-radius: 22px; --bubble-button-box-shadow: 0 8px 24px rgba(15,23,42,.10); } .bubble-name { font-weight: 800 !important; letter-spacing: -.01em; } .bubble-state { font-weight: 650 !important; }"
+                  },
+                  {
+                    "type": "custom:bubble-card",
+                    "card_type": "button",
+                    "button_type": "state",
+                    "entity": "binary_sensor.kitchen_occupied",
+                    "name": "Kitchen",
+                    "icon": "mdi:fridge",
+                    "show_state": true,
+                    "show_last_updated": true,
+                    "styles": ":host { --bubble-accent-color: #007aff; --bubble-button-border-radius: 22px; --bubble-button-box-shadow: 0 8px 24px rgba(15,23,42,.10); } .bubble-name { font-weight: 800 !important; letter-spacing: -.01em; } .bubble-state { font-weight: 650 !important; }"
+                  },
+                  {
+                    "type": "custom:bubble-card",
+                    "card_type": "button",
+                    "button_type": "state",
+                    "entity": "binary_sensor.office_occupied",
+                    "name": "Office",
+                    "icon": "mdi:desk",
+                    "show_state": true,
+                    "show_last_updated": true,
+                    "styles": ":host { --bubble-accent-color: #007aff; --bubble-button-border-radius: 22px; --bubble-button-box-shadow: 0 8px 24px rgba(15,23,42,.10); } .bubble-name { font-weight: 800 !important; letter-spacing: -.01em; } .bubble-state { font-weight: 650 !important; }"
+                  },
+                  {
+                    "type": "custom:bubble-card",
+                    "card_type": "button",
+                    "button_type": "state",
+                    "entity": "binary_sensor.foyer_occupied",
+                    "name": "Foyer",
+                    "icon": "mdi:door-open",
+                    "show_state": true,
+                    "show_last_updated": true,
+                    "styles": ":host { --bubble-accent-color: #007aff; --bubble-button-border-radius: 22px; --bubble-button-box-shadow: 0 8px 24px rgba(15,23,42,.10); } .bubble-name { font-weight: 800 !important; letter-spacing: -.01em; } .bubble-state { font-weight: 650 !important; }"
+                  },
+                  {
+                    "type": "custom:bubble-card",
+                    "card_type": "button",
+                    "button_type": "state",
+                    "entity": "binary_sensor.master_bedroom_occupied",
+                    "name": "Master Bedroom",
+                    "icon": "mdi:bed",
+                    "show_state": true,
+                    "show_last_updated": true,
+                    "styles": ":host { --bubble-accent-color: #007aff; --bubble-button-border-radius: 22px; --bubble-button-box-shadow: 0 8px 24px rgba(15,23,42,.10); } .bubble-name { font-weight: 800 !important; letter-spacing: -.01em; } .bubble-state { font-weight: 650 !important; }"
+                  },
+                  {
+                    "type": "custom:bubble-card",
+                    "card_type": "button",
+                    "button_type": "state",
+                    "entity": "binary_sensor.master_bath_occupied",
+                    "name": "Master Bath",
+                    "icon": "mdi:shower",
+                    "show_state": true,
+                    "show_last_updated": true,
+                    "styles": ":host { --bubble-accent-color: #007aff; --bubble-button-border-radius: 22px; --bubble-button-box-shadow: 0 8px 24px rgba(15,23,42,.10); } .bubble-name { font-weight: 800 !important; letter-spacing: -.01em; } .bubble-state { font-weight: 650 !important; }"
+                  },
+                  {
+                    "type": "custom:bubble-card",
+                    "card_type": "button",
+                    "button_type": "state",
+                    "entity": "binary_sensor.theater_occupied",
+                    "name": "Theater",
+                    "icon": "mdi:theater",
+                    "show_state": true,
+                    "show_last_updated": true,
+                    "styles": ":host { --bubble-accent-color: #007aff; --bubble-button-border-radius: 22px; --bubble-button-box-shadow: 0 8px 24px rgba(15,23,42,.10); } .bubble-name { font-weight: 800 !important; letter-spacing: -.01em; } .bubble-state { font-weight: 650 !important; }"
+                  },
+                  {
+                    "type": "custom:bubble-card",
+                    "card_type": "button",
+                    "button_type": "state",
+                    "entity": "binary_sensor.basement_landing_occupied",
+                    "name": "Basement Landing",
+                    "icon": "mdi:stairs-down",
+                    "show_state": true,
+                    "show_last_updated": true,
+                    "styles": ":host { --bubble-accent-color: #007aff; --bubble-button-border-radius: 22px; --bubble-button-box-shadow: 0 8px 24px rgba(15,23,42,.10); } .bubble-name { font-weight: 800 !important; letter-spacing: -.01em; } .bubble-state { font-weight: 650 !important; }"
+                  },
+                  {
+                    "type": "custom:bubble-card",
+                    "card_type": "button",
+                    "button_type": "state",
+                    "entity": "binary_sensor.basement_occupied",
+                    "name": "Basement",
+                    "icon": "mdi:home-floor-negative-1",
+                    "show_state": true,
+                    "show_last_updated": true,
+                    "styles": ":host { --bubble-accent-color: #007aff; --bubble-button-border-radius: 22px; --bubble-button-box-shadow: 0 8px 24px rgba(15,23,42,.10); } .bubble-name { font-weight: 800 !important; letter-spacing: -.01em; } .bubble-state { font-weight: 650 !important; }"
+                  },
+                  {
+                    "type": "custom:bubble-card",
+                    "card_type": "button",
+                    "button_type": "state",
+                    "entity": "binary_sensor.shop_occupied",
+                    "name": "Shop",
+                    "icon": "mdi:hammer-wrench",
+                    "show_state": true,
+                    "show_last_updated": true,
+                    "styles": ":host { --bubble-accent-color: #007aff; --bubble-button-border-radius: 22px; --bubble-button-box-shadow: 0 8px 24px rgba(15,23,42,.10); } .bubble-name { font-weight: 800 !important; letter-spacing: -.01em; } .bubble-state { font-weight: 650 !important; }"
+                  },
+                  {
+                    "type": "custom:bubble-card",
+                    "card_type": "button",
+                    "button_type": "state",
+                    "entity": "binary_sensor.upstairs_hall_occupied",
+                    "name": "Upstairs Hall",
+                    "icon": "mdi:stairs-up",
+                    "show_state": true,
+                    "show_last_updated": true,
+                    "styles": ":host { --bubble-accent-color: #007aff; --bubble-button-border-radius: 22px; --bubble-button-box-shadow: 0 8px 24px rgba(15,23,42,.10); } .bubble-name { font-weight: 800 !important; letter-spacing: -.01em; } .bubble-state { font-weight: 650 !important; }"
+                  },
+                  {
+                    "type": "custom:bubble-card",
+                    "card_type": "button",
+                    "button_type": "state",
+                    "entity": "binary_sensor.garage_occupied",
+                    "name": "Garage",
+                    "icon": "mdi:garage",
+                    "show_state": true,
+                    "show_last_updated": true,
+                    "styles": ":host { --bubble-accent-color: #007aff; --bubble-button-border-radius: 22px; --bubble-button-box-shadow: 0 8px 24px rgba(15,23,42,.10); } .bubble-name { font-weight: 800 !important; letter-spacing: -.01em; } .bubble-state { font-weight: 650 !important; }"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "custom:bubble-card",
+            "card_type": "pop-up",
+            "hash": "#hc-signals",
+            "name": "Signals & Suggestions",
+            "icon": "mdi:waveform",
+            "popup_style": "bubble",
+            "popup_mode": "adaptive-dialog",
+            "close_on_click": false,
+            "width_desktop": "760px",
+            "show_previous_button": false,
+            "bg_blur": "18",
+            "styles": ":host { --bubble-accent-color: #007aff; }",
+            "cards": [
+              {
+                "type": "heading",
+                "heading": "Signal diagnostics",
+                "heading_style": "subtitle",
+                "icon": "mdi:source-branch-check"
+              },
+              {
+                "type": "markdown",
+                "title": "Signal diagnostics",
+                "content": "{% set s = states('sensor.home_context_signal_diagnostics') %}\n{% set d = state_attr('sensor.home_context_signal_diagnostics', 'issue_card') %}\n{% if s in ['unknown', 'unavailable'] %}\n## Diagnostics unavailable\nThe private diagnostics report is missing, stale, malformed, or unreachable. No healthy result is inferred.\n\n_Home Context AI Actions: **OFF** · no device controls_\n{% elif d %}\n## {{ d.state }} · {{ d.title }}\n\n**Affected helper:** `{{ d.affected_helper }}`  \n**Suspect source:** `{{ d.suspect_source }}` · age {{ (d.suspect_age_seconds / 60) | round(0) }} min  \n**Comparison:** {{ d.comparison_sources | join(', ') }}  \n**Downstream effect:** {{ d.downstream_effect | join(', ') }}\n\n{{ d.evidence }}\n\n{% if d.proposed_mutation %}**Proposed one-line repair:** replace `{{ d.proposed_mutation.suspect_source }}` with `{{ d.proposed_mutation.replacement_source }}`.  \n**Confidence:** {{ d.confidence }}% · **Rollback:** ready{% endif %}\n\nDetection **{{ d.lifecycle[0].state }}** → Proposal **{{ d.lifecycle[1].state }}** → Approval **{{ d.lifecycle[2].state }}** → Verification **{{ d.lifecycle[3].state }}** → Resolution **{{ d.lifecycle[4].state }}**  \nRollback **{{ d.lifecycle[5].state }}**\n\n{% if d.verification.failed %}⚠️ **Verification failed:** {{ d.verification.result }}  \n**Corrective path:** keep the issue open, re-evaluate fresh candidates, and use the displayed rollback if readback is uncertain.{% elif d.verification.physical_canary_pending %}⚠️ **Physical canary pending:** walk through the Garage PIR field, then verify ON and clear transitions.{% endif %}\n\n_Home Context AI Actions: **OFF** · configuration repair only · no device controls · dry-run default_\n{% else %}\n## {{ s }}\nNo Home Context signal contradiction is currently reported.\n\n_Report generated {{ state_attr('sensor.home_context_signal_diagnostics', 'generated_at') }} · Home Context AI Actions: **OFF**_\n{% endif %}",
+                "entity_id": [
+                  "sensor.home_context_signal_diagnostics",
+                  "input_boolean.ai_actions_enabled"
+                ]
+              },
+              {
+                "type": "grid",
+                "columns": 2,
+                "square": false,
+                "cards": [
+                  {
+                    "type": "tile",
+                    "entity": "input_select.home_context_mode",
+                    "name": "Mode",
+                    "icon": "mdi:home-analytics",
+                    "state_content": "state",
+                    "features_position": "inline",
+                    "features": [
+                      {
+                        "type": "select-options",
+                        "style": "dropdown"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "tile",
+                    "entity": "input_select.home_current_activity",
+                    "name": "Activity",
+                    "icon": "mdi:motion-play-outline",
+                    "state_content": "state",
+                    "features_position": "inline",
+                    "features": [
+                      {
+                        "type": "select-options",
+                        "style": "dropdown"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "tile",
+                    "entity": "binary_sensor.home_context_engine_stalled",
+                    "name": "Engine Stalled",
+                    "icon": "mdi:alert-octagon-outline",
+                    "state_content": [
+                      "state",
+                      "last_changed"
+                    ]
+                  },
+                  {
+                    "type": "tile",
+                    "entity": "sensor.home_context_observer_age",
+                    "name": "Observer Age",
+                    "icon": "mdi:timer-sand",
+                    "state_content": [
+                      "state",
+                      "last_changed"
+                    ]
+                  },
+                  {
+                    "type": "tile",
+                    "entity": "automation.home_context_dynamic_suggestions",
+                    "name": "Suggestion Engine",
+                    "icon": "mdi:lightbulb-on-outline",
+                    "state_content": [
+                      "state",
+                      "last_changed"
+                    ],
+                    "features_position": "inline",
+                    "features": [
+                      {
+                        "type": "toggle"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "tile",
+                    "entity": "input_text.home_context_summary",
+                    "name": "Context Summary",
+                    "icon": "mdi:text-box-outline",
+                    "state_content": [
+                      "state",
+                      "last_changed"
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "tile",
+                "entity": "input_text.home_context_suggestion",
+                "name": "Current Suggestion",
+                "icon": "mdi:lightbulb-on-outline",
+                "state_content": [
+                  "state",
+                  "last_changed"
+                ]
+              },
+              {
+                "type": "tile",
+                "entity": "input_text.home_next_likely_activity",
+                "name": "Next Likely Activity",
+                "icon": "mdi:crystal-ball",
+                "state_content": [
+                  "state",
+                  "last_changed"
+                ]
+              },
+              {
+                "type": "grid",
+                "columns": 2,
+                "square": false,
+                "cards": [
+                  {
+                    "type": "tile",
+                    "entity": "input_button.approve_home_context_suggestion",
+                    "name": "Approve suggestion",
+                    "icon": "mdi:check-circle",
+                    "color": "green",
+                    "tap_action": {
+                      "action": "perform-action",
+                      "perform_action": "input_button.press",
+                      "target": {
+                        "entity_id": "input_button.approve_home_context_suggestion"
+                      }
+                    }
+                  },
+                  {
+                    "type": "tile",
+                    "entity": "input_button.dismiss_home_context_suggestion",
+                    "name": "Dismiss suggestion",
+                    "icon": "mdi:close-circle",
+                    "color": "red",
+                    "tap_action": {
+                      "action": "perform-action",
+                      "perform_action": "input_button.press",
+                      "target": {
+                        "entity_id": "input_button.dismiss_home_context_suggestion"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "heading",
+                "heading": "Live inputs",
+                "heading_style": "subtitle",
+                "icon": "mdi:access-point"
+              },
+              {
+                "type": "grid",
+                "columns": 2,
+                "square": false,
+                "cards": [
+                  {
+                    "type": "tile",
+                    "entity": "binary_sensor.residents_home",
+                    "name": "Residents Home",
+                    "icon": "mdi:account-check",
+                    "state_content": [
+                      "state",
+                      "last_changed"
+                    ]
+                  },
+                  {
+                    "type": "tile",
+                    "entity": "binary_sensor.home_room_presence",
+                    "name": "Any Room Presence",
+                    "icon": "mdi:motion-sensor",
+                    "state_content": [
+                      "state",
+                      "last_changed"
+                    ]
+                  },
+                  {
+                    "type": "tile",
+                    "entity": "binary_sensor.recent_arrival",
+                    "name": "Recent Arrival",
+                    "icon": "mdi:door-closed",
+                    "state_content": [
+                      "state",
+                      "last_changed"
+                    ]
+                  },
+                  {
+                    "type": "tile",
+                    "entity": "binary_sensor.exterior_door_open",
+                    "name": "Exterior Door",
+                    "icon": "mdi:door-open",
+                    "state_content": [
+                      "state",
+                      "last_changed"
+                    ]
+                  },
+                  {
+                    "type": "tile",
+                    "entity": "binary_sensor.tv_active",
+                    "name": "TV Active",
+                    "icon": "mdi:television-classic",
+                    "state_content": [
+                      "state",
+                      "last_changed"
+                    ]
+                  },
+                  {
+                    "type": "tile",
+                    "entity": "binary_sensor.music_playing",
+                    "name": "Music Playing",
+                    "icon": "mdi:music",
+                    "state_content": [
+                      "state",
+                      "last_changed"
+                    ]
+                  },
+                  {
+                    "type": "tile",
+                    "entity": "binary_sensor.night_time",
+                    "name": "Night Time",
+                    "icon": "mdi:weather-night",
+                    "state_content": [
+                      "state",
+                      "last_changed"
+                    ]
+                  },
+                  {
+                    "type": "tile",
+                    "entity": "binary_sensor.master_motion_mater_unity_motion_mater_unity_has_still_human_target",
+                    "name": "Master Still Person",
+                    "icon": "mdi:sleep",
+                    "state_content": [
+                      "state",
+                      "last_changed"
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "markdown",
+                "content": "### Confidence model\n\n| Activity | Range | Strongest evidence |\n|---|---:|---|\n| Sleeping | 53–97 | night + master bedroom occupied |\n| Watching TV | 78–96 | family room occupied |\n| Working | 76–88 | office 5+ min, weekday daytime |\n| Cooking | 72–90 | kitchen 5+ min, meal window |\n| Listening to Music | 74–92 | music on, TV off |\n| Away | 85–90 | no residents or room presence |\n\n_Dining is not yet classified because no dining-room sensor exists._"
+              }
+            ]
+          },
+          {
+            "type": "custom:bubble-card",
+            "card_type": "pop-up",
+            "hash": "#hc-history",
+            "name": "Last 24 Hours",
+            "icon": "mdi:chart-timeline-variant",
+            "popup_style": "bubble",
+            "popup_mode": "adaptive-dialog",
+            "close_on_click": false,
+            "width_desktop": "900px",
+            "show_previous_button": false,
+            "bg_blur": "18",
+            "styles": ":host { --bubble-accent-color: #007aff; }",
+            "cards": [
+              {
+                "type": "custom:mini-graph-card",
+                "name": "Confidence",
+                "icon": "mdi:gauge",
+                "entities": [
+                  "input_number.home_context_confidence"
+                ],
+                "hours_to_show": 24,
+                "points_per_hour": 2,
+                "line_width": 3,
+                "show": {
+                  "legend": false,
+                  "labels": false,
+                  "points": false,
+                  "fill": true,
+                  "state": true
+                },
+                "color_thresholds": [
+                  {
+                    "value": 0,
+                    "color": "#ff3b30"
+                  },
+                  {
+                    "value": 60,
+                    "color": "#ff9500"
+                  },
+                  {
+                    "value": 80,
+                    "color": "#34c759"
+                  }
+                ]
+              },
+              {
+                "type": "history-graph",
+                "title": "Context Timeline",
+                "hours_to_show": 24,
+                "entities": [
+                  {
+                    "entity": "input_select.home_context_mode",
+                    "name": "Mode",
+                    "color": "#5856d6"
+                  },
+                  {
+                    "entity": "input_select.home_current_activity",
+                    "name": "Activity",
+                    "color": "#ffcc00"
+                  }
+                ]
+              },
+              {
+                "type": "history-graph",
+                "title": "Room Occupancy",
+                "hours_to_show": 24,
+                "entities": [
+                  {
+                    "entity": "binary_sensor.family_room_occupied",
+                    "name": "Family Room",
+                    "color": "#34c759"
+                  },
+                  {
+                    "entity": "binary_sensor.kitchen_occupied",
+                    "name": "Kitchen",
+                    "color": "#ff9500"
+                  },
+                  {
+                    "entity": "binary_sensor.office_occupied",
+                    "name": "Office",
+                    "color": "#007aff"
+                  },
+                  {
+                    "entity": "binary_sensor.master_bedroom_occupied",
+                    "name": "Master",
+                    "color": "#ff2d55"
+                  },
+                  {
+                    "entity": "binary_sensor.theater_occupied",
+                    "name": "Theater",
+                    "color": "#af52de"
+                  },
+                  {
+                    "entity": "binary_sensor.basement_landing_occupied",
+                    "name": "Basement Landing",
+                    "color": "#8e8e93"
+                  }
+                ]
+              },
+              {
+                "type": "history-graph",
+                "title": "Doors, Media & Presence",
+                "hours_to_show": 24,
+                "entities": [
+                  {
+                    "entity": "binary_sensor.tv_active",
+                    "name": "TV",
+                    "color": "#ff3b30"
+                  },
+                  {
+                    "entity": "binary_sensor.music_playing",
+                    "name": "Music",
+                    "color": "#5ac8fa"
+                  },
+                  {
+                    "entity": "binary_sensor.exterior_door_open",
+                    "name": "Door Open",
+                    "color": "#ff9500"
+                  },
+                  {
+                    "entity": "binary_sensor.recent_arrival",
+                    "name": "Recent Arrival",
+                    "color": "#32ade6"
+                  },
+                  {
+                    "entity": "binary_sensor.residents_home",
+                    "name": "Residents Home",
+                    "color": "#34c759"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
