@@ -3,4 +3,10 @@ secrets.yaml
 *.token
 .storage/
 *.log
+*.sqlite
+*.sqlite3
+*.sqlite3-shm
+*.sqlite3-wal
+__pycache__/
+*.pyc
 .DS_Store

@@ -35,7 +35,7 @@ Watching TV → Listening to Music → Waking → Active → Unknown
 | Helper | Meaning |
 |---|---|
 | `binary_sensor.residents_home` | any of person.randy / kim / alex is home |
-| `binary_sensor.home_room_presence` | any of 11 room-occupancy helpers is on |
+| `binary_sensor.home_room_presence` | any of 12 room-occupancy helpers is on |
 | `sensor.home_active_room` | names the currently occupied room(s) |
 | `binary_sensor.tv_active` | the LG webOS TV is on (not the always-on DVR) |
 | `binary_sensor.music_playing` | a music source is playing and the TV is off |
@@ -43,7 +43,7 @@ Watching TV → Listening to Music → Waking → Active → Unknown
 | `binary_sensor.exterior_door_open` | any exterior door / garage is open |
 | `binary_sensor.recent_arrival` | 8 min after a front/garage-entry door opens |
 
-Eleven per-room occupancy helpers (`*_occupied`) each OR together the real
+Twelve per-room occupancy helpers (`*_occupied`) each OR together the real
 motion/mmWave/FP2 sensors for that room, so a single flaky sensor cannot pin a
 room "occupied," and movement **between** rooms re-classifies the context.
 
@@ -78,17 +78,27 @@ automations/   HA config-API JSON:
                  home_context_mark_wrong .......... Phase 3: log a "that was wrong" correction
                  home_context_sync_bed_time ....... peripheral house-mode ↔ bed_time sync
 helpers/       Template + group + input helper definitions (HELPERS.md)
-dashboard/     The "Home Context" Lovelace view (sanitized JSON)
-docs/          PLAN.md (working log) and VISION_ROADMAP.md (north star)
+dashboard/     The "Home Context" Lovelace view, current live-view snapshot,
+               and offline signal-issue card design
+docs/          PLAN.md (working log), VISION_ROADMAP.md (north star), and
+               operations/ (credential-free deployment plans and evidence)
 ```
 
 ## Roadmap (abridged — see docs/VISION_ROADMAP.md)
 
-- **Phase 1 / 1.5 / 1.6** ✅ situational + room-level awareness (11 rooms)
+- **Phase 1 / 1.5 / 1.6** ✅ situational + room-level awareness (12 rooms)
 - **Phase 2** ✅ activity vocabulary (Working / Cooking / Music / TV)
-- **Phase 3** ◀ measurement — a "that was wrong" correction path
+- **Phase 3** ◀ measurement — Confirm / Wrong / Unsure feedback, private
+  aggregate scoring, and signal diagnostics
 - **Phase 4** suggest → then adapt (started; observe-only)
 - **Phase 5** learn typical patterns
+
+Phase 4 remains locked until the private report has at least 50 reviewed
+outcomes, an exact target activity has at least 20 reviewed samples and at
+least 90% precision, calibration error is at most 10 percentage points, and
+required-signal health plus drift gates pass. The latest credential-free
+aggregate and diagnostics deployment evidence is in
+`docs/operations/`.
 
 ## Design principles
 

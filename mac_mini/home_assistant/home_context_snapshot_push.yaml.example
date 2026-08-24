@@ -1,0 +1,242 @@
+# REVIEW-ONLY DRAFT. Do not install without config validation, backup, owner approval,
+# and the required Home Assistant restart for rest_command configuration.
+rest:
+  - resource: "https://randys-mac-mini.tail1f233.ts.net:9443/v1/home-context/diagnostics"
+    method: GET
+    headers:
+      X-Home-Context-Secret: !secret home_context_receiver_secret
+    verify_ssl: true
+    timeout: 5
+    scan_interval: 60
+    sensor:
+      - name: Home Context Signal Diagnostics
+        unique_id: home_context_signal_diagnostics
+        value_template: "{{ value_json.overall_status }}"
+        json_attributes:
+          - schema_version
+          - generated_at
+          - observed_at
+          - fresh_until
+          - issue_count
+          - issue_card
+          - safety
+          - privacy
+
+rest_command:
+  home_context_post_snapshot:
+    url: "https://randys-mac-mini.tail1f233.ts.net:9443/v1/home-context/snapshot"
+    method: POST
+    headers:
+      X-Home-Context-Secret: !secret home_context_receiver_secret
+    content_type: "application/json"
+    verify_ssl: true
+    timeout: 5
+    payload: >-
+      {{ {
+        'snapshot_at': now().isoformat(),
+        'observer_config': {
+          'automation_id': 'automation.home_context_evening_observer',
+          'config_sha256': 'bc406e98598bebbc20c0efcb963c0443facc203b71ba7a9cfedfca21e8ca20e6',
+          'version': '0b7554c973b019865c6962a69d687559251f3e2d00f56767e7f2de5c9f880470'
+        },
+        'entities': {
+          'input_select.home_context_mode': {'state': states.input_select.home_context_mode.state, 'last_changed': states.input_select.home_context_mode.last_changed.isoformat(), 'last_reported': states.input_select.home_context_mode.last_reported.isoformat()},
+          'input_select.home_current_activity': {'state': states.input_select.home_current_activity.state, 'last_changed': states.input_select.home_current_activity.last_changed.isoformat(), 'last_reported': states.input_select.home_current_activity.last_reported.isoformat()},
+          'input_number.home_context_confidence': {'state': states.input_number.home_context_confidence.state, 'last_changed': states.input_number.home_context_confidence.last_changed.isoformat(), 'last_reported': states.input_number.home_context_confidence.last_reported.isoformat()},
+          'sensor.home_active_room': {'state': states.sensor.home_active_room.state, 'last_changed': states.sensor.home_active_room.last_changed.isoformat(), 'last_reported': states.sensor.home_active_room.last_reported.isoformat()},
+          'input_text.home_context_summary': {'state': states.input_text.home_context_summary.state, 'last_changed': states.input_text.home_context_summary.last_changed.isoformat(), 'last_reported': states.input_text.home_context_summary.last_reported.isoformat()},
+          'input_text.home_next_likely_activity': {'state': states.input_text.home_next_likely_activity.state, 'last_changed': states.input_text.home_next_likely_activity.last_changed.isoformat(), 'last_reported': states.input_text.home_next_likely_activity.last_reported.isoformat()},
+          'input_boolean.ai_actions_enabled': {'state': states.input_boolean.ai_actions_enabled.state, 'last_changed': states.input_boolean.ai_actions_enabled.last_changed.isoformat(), 'last_reported': states.input_boolean.ai_actions_enabled.last_reported.isoformat()},
+          'sensor.home_context_observer_age': {'state': states.sensor.home_context_observer_age.state, 'last_changed': states.sensor.home_context_observer_age.last_changed.isoformat(), 'last_reported': states.sensor.home_context_observer_age.last_reported.isoformat()},
+          'binary_sensor.home_context_engine_stalled': {'state': states.binary_sensor.home_context_engine_stalled.state, 'last_changed': states.binary_sensor.home_context_engine_stalled.last_changed.isoformat(), 'last_reported': states.binary_sensor.home_context_engine_stalled.last_reported.isoformat()},
+          'binary_sensor.residents_home': {'state': states.binary_sensor.residents_home.state, 'last_changed': states.binary_sensor.residents_home.last_changed.isoformat(), 'last_reported': states.binary_sensor.residents_home.last_reported.isoformat()},
+          'binary_sensor.home_room_presence': {'state': states.binary_sensor.home_room_presence.state, 'last_changed': states.binary_sensor.home_room_presence.last_changed.isoformat(), 'last_reported': states.binary_sensor.home_room_presence.last_reported.isoformat()},
+          'binary_sensor.tv_active': {'state': states.binary_sensor.tv_active.state, 'last_changed': states.binary_sensor.tv_active.last_changed.isoformat(), 'last_reported': states.binary_sensor.tv_active.last_reported.isoformat()},
+          'binary_sensor.music_playing': {'state': states.binary_sensor.music_playing.state, 'last_changed': states.binary_sensor.music_playing.last_changed.isoformat(), 'last_reported': states.binary_sensor.music_playing.last_reported.isoformat()},
+          'binary_sensor.exterior_door_open': {'state': states.binary_sensor.exterior_door_open.state, 'last_changed': states.binary_sensor.exterior_door_open.last_changed.isoformat(), 'last_reported': states.binary_sensor.exterior_door_open.last_reported.isoformat()},
+          'binary_sensor.recent_arrival': {'state': states.binary_sensor.recent_arrival.state, 'last_changed': states.binary_sensor.recent_arrival.last_changed.isoformat(), 'last_reported': states.binary_sensor.recent_arrival.last_reported.isoformat()},
+          'input_button.home_context_confirm': {'state': states.input_button.home_context_confirm.state, 'last_changed': states.input_button.home_context_confirm.last_changed.isoformat(), 'last_reported': states.input_button.home_context_confirm.last_reported.isoformat()},
+          'input_button.home_context_mark_wrong': {'state': states.input_button.home_context_mark_wrong.state, 'last_changed': states.input_button.home_context_mark_wrong.last_changed.isoformat(), 'last_reported': states.input_button.home_context_mark_wrong.last_reported.isoformat()},
+          'input_button.home_context_mark_unsure': {'state': states.input_button.home_context_mark_unsure.state, 'last_changed': states.input_button.home_context_mark_unsure.last_changed.isoformat(), 'last_reported': states.input_button.home_context_mark_unsure.last_reported.isoformat()},
+          'input_select.home_context_corrected_activity': {'state': states.input_select.home_context_corrected_activity.state, 'last_changed': states.input_select.home_context_corrected_activity.last_changed.isoformat(), 'last_reported': states.input_select.home_context_corrected_activity.last_reported.isoformat()},
+          'counter.home_context_confirmations': {'state': states.counter.home_context_confirmations.state, 'last_changed': states.counter.home_context_confirmations.last_changed.isoformat(), 'last_reported': states.counter.home_context_confirmations.last_reported.isoformat()},
+          'counter.home_context_corrections': {'state': states.counter.home_context_corrections.state, 'last_changed': states.counter.home_context_corrections.last_changed.isoformat(), 'last_reported': states.counter.home_context_corrections.last_reported.isoformat()},
+          'counter.home_context_unsure': {'state': states.counter.home_context_unsure.state, 'last_changed': states.counter.home_context_unsure.last_changed.isoformat(), 'last_reported': states.counter.home_context_unsure.last_reported.isoformat()}
+        },
+        'source_context': {
+          'garage-diagnostics-v1': {
+            'schema_version': 1,
+            'helper': {
+              'config_entry_id': '01KZHASWE6S7W7NE177MHX89AF',
+              'config_sha256': '78ab0c78b8859d48eb13549eca77484db9e2036140272fccde20c797e74880dc',
+              'entity_id': 'binary_sensor.garage_occupied',
+              'device_class': 'occupancy',
+              'source_entity_ids': ['binary_sensor.pir_motion_sensor_2_sensor_state_motion', 'binary_sensor.gdo1_motion', 'binary_sensor.grgdo1_motion'],
+              'state': states.binary_sensor.garage_occupied.state,
+              'last_changed': states.binary_sensor.garage_occupied.last_changed.isoformat(),
+              'last_reported': states.binary_sensor.garage_occupied.last_reported.isoformat()
+            },
+            'signals': {
+              "binary_sensor.pir_motion_sensor_2_motion_detection": {'state': states.binary_sensor.pir_motion_sensor_2_motion_detection.state, 'last_changed': states.binary_sensor.pir_motion_sensor_2_motion_detection.last_changed.isoformat(), 'last_reported': states.binary_sensor.pir_motion_sensor_2_motion_detection.last_reported.isoformat()},
+              "binary_sensor.pir_motion_sensor_2_sensor_state_motion": {'state': states.binary_sensor.pir_motion_sensor_2_sensor_state_motion.state, 'last_changed': states.binary_sensor.pir_motion_sensor_2_sensor_state_motion.last_changed.isoformat(), 'last_reported': states.binary_sensor.pir_motion_sensor_2_sensor_state_motion.last_reported.isoformat()},
+              "binary_sensor.gdo1_motion": {'state': states.binary_sensor.gdo1_motion.state, 'last_changed': states.binary_sensor.gdo1_motion.last_changed.isoformat(), 'last_reported': states.binary_sensor.gdo1_motion.last_reported.isoformat()},
+              "binary_sensor.grgdo1_motion": {'state': states.binary_sensor.grgdo1_motion.state, 'last_changed': states.binary_sensor.grgdo1_motion.last_changed.isoformat(), 'last_reported': states.binary_sensor.grgdo1_motion.last_reported.isoformat()}
+            },
+            'downstream': {
+              'entity_id': 'sensor.home_active_room',
+              'state': states.sensor.home_active_room.state,
+              'last_changed': states.sensor.home_active_room.last_changed.isoformat(),
+              'last_reported': states.sensor.home_active_room.last_reported.isoformat()
+            }
+          },
+          'fp300-context-v1': {
+            'entities': {
+              "button.aqara_lumi_sensor_occupy_agl8_identify": {'state': states.button.aqara_lumi_sensor_occupy_agl8_identify.state, 'last_changed': states.button.aqara_lumi_sensor_occupy_agl8_identify.last_changed.isoformat(), 'last_reported': states.button.aqara_lumi_sensor_occupy_agl8_identify.last_reported.isoformat()},
+              "sensor.aqara_lumi_sensor_occupy_agl8_illuminance": {'state': states.sensor.aqara_lumi_sensor_occupy_agl8_illuminance.state, 'last_changed': states.sensor.aqara_lumi_sensor_occupy_agl8_illuminance.last_changed.isoformat(), 'last_reported': states.sensor.aqara_lumi_sensor_occupy_agl8_illuminance.last_reported.isoformat()},
+              "sensor.aqara_lumi_sensor_occupy_agl8_humidity": {'state': states.sensor.aqara_lumi_sensor_occupy_agl8_humidity.state, 'last_changed': states.sensor.aqara_lumi_sensor_occupy_agl8_humidity.last_changed.isoformat(), 'last_reported': states.sensor.aqara_lumi_sensor_occupy_agl8_humidity.last_reported.isoformat()},
+              "sensor.aqara_lumi_sensor_occupy_agl8_temperature": {'state': states.sensor.aqara_lumi_sensor_occupy_agl8_temperature.state, 'last_changed': states.sensor.aqara_lumi_sensor_occupy_agl8_temperature.last_changed.isoformat(), 'last_reported': states.sensor.aqara_lumi_sensor_occupy_agl8_temperature.last_reported.isoformat()},
+              "sensor.aqara_lumi_sensor_occupy_agl8_battery": {'state': states.sensor.aqara_lumi_sensor_occupy_agl8_battery.state, 'last_changed': states.sensor.aqara_lumi_sensor_occupy_agl8_battery.last_changed.isoformat(), 'last_reported': states.sensor.aqara_lumi_sensor_occupy_agl8_battery.last_reported.isoformat()},
+              "update.aqara_lumi_sensor_occupy_agl8_firmware": {'state': states.update.aqara_lumi_sensor_occupy_agl8_firmware.state, 'last_changed': states.update.aqara_lumi_sensor_occupy_agl8_firmware.last_changed.isoformat(), 'last_reported': states.update.aqara_lumi_sensor_occupy_agl8_firmware.last_reported.isoformat()},
+              "binary_sensor.family_room_aqara_presence_multi_sensor_fp300": {'state': states.binary_sensor.family_room_aqara_presence_multi_sensor_fp300.state, 'last_changed': states.binary_sensor.family_room_aqara_presence_multi_sensor_fp300.last_changed.isoformat(), 'last_reported': states.binary_sensor.family_room_aqara_presence_multi_sensor_fp300.last_reported.isoformat()},
+              "binary_sensor.family_room_aqara_presence_multi_sensor_fp300_pir_detection": {'state': states.binary_sensor.family_room_aqara_presence_multi_sensor_fp300_pir_detection.state, 'last_changed': states.binary_sensor.family_room_aqara_presence_multi_sensor_fp300_pir_detection.last_changed.isoformat(), 'last_reported': states.binary_sensor.family_room_aqara_presence_multi_sensor_fp300_pir_detection.last_reported.isoformat()},
+              "button.family_room_aqara_presence_multi_sensor_fp300_ai_spatial_learning": {'state': states.button.family_room_aqara_presence_multi_sensor_fp300_ai_spatial_learning.state, 'last_changed': states.button.family_room_aqara_presence_multi_sensor_fp300_ai_spatial_learning.last_changed.isoformat(), 'last_reported': states.button.family_room_aqara_presence_multi_sensor_fp300_ai_spatial_learning.last_reported.isoformat()},
+              "button.family_room_aqara_presence_multi_sensor_fp300_restart_device": {'state': states.button.family_room_aqara_presence_multi_sensor_fp300_restart_device.state, 'last_changed': states.button.family_room_aqara_presence_multi_sensor_fp300_restart_device.last_changed.isoformat(), 'last_reported': states.button.family_room_aqara_presence_multi_sensor_fp300_restart_device.last_reported.isoformat()},
+              "button.family_room_aqara_presence_multi_sensor_fp300_track_target_distance": {'state': states.button.family_room_aqara_presence_multi_sensor_fp300_track_target_distance.state, 'last_changed': states.button.family_room_aqara_presence_multi_sensor_fp300_track_target_distance.last_changed.isoformat(), 'last_reported': states.button.family_room_aqara_presence_multi_sensor_fp300_track_target_distance.last_reported.isoformat()},
+              "number.family_room_aqara_presence_multi_sensor_fp300_absence_delay": {'state': states.number.family_room_aqara_presence_multi_sensor_fp300_absence_delay.state, 'last_changed': states.number.family_room_aqara_presence_multi_sensor_fp300_absence_delay.last_changed.isoformat(), 'last_reported': states.number.family_room_aqara_presence_multi_sensor_fp300_absence_delay.last_reported.isoformat()},
+              "number.family_room_aqara_presence_multi_sensor_fp300_pir_detection_interval": {'state': states.number.family_room_aqara_presence_multi_sensor_fp300_pir_detection_interval.state, 'last_changed': states.number.family_room_aqara_presence_multi_sensor_fp300_pir_detection_interval.last_changed.isoformat(), 'last_reported': states.number.family_room_aqara_presence_multi_sensor_fp300_pir_detection_interval.last_reported.isoformat()},
+              "number.family_room_aqara_presence_multi_sensor_fp300_light_report_threshold": {'state': states.number.family_room_aqara_presence_multi_sensor_fp300_light_report_threshold.state, 'last_changed': states.number.family_room_aqara_presence_multi_sensor_fp300_light_report_threshold.last_changed.isoformat(), 'last_reported': states.number.family_room_aqara_presence_multi_sensor_fp300_light_report_threshold.last_reported.isoformat()},
+              "number.family_room_aqara_presence_multi_sensor_fp300_light_sampling_period": {'state': states.number.family_room_aqara_presence_multi_sensor_fp300_light_sampling_period.state, 'last_changed': states.number.family_room_aqara_presence_multi_sensor_fp300_light_sampling_period.last_changed.isoformat(), 'last_reported': states.number.family_room_aqara_presence_multi_sensor_fp300_light_sampling_period.last_reported.isoformat()},
+              "number.family_room_aqara_presence_multi_sensor_fp300_light_report_interval": {'state': states.number.family_room_aqara_presence_multi_sensor_fp300_light_report_interval.state, 'last_changed': states.number.family_room_aqara_presence_multi_sensor_fp300_light_report_interval.last_changed.isoformat(), 'last_reported': states.number.family_room_aqara_presence_multi_sensor_fp300_light_report_interval.last_reported.isoformat()},
+              "number.family_room_aqara_presence_multi_sensor_fp300_temperature_report_threshold": {'state': states.number.family_room_aqara_presence_multi_sensor_fp300_temperature_report_threshold.state, 'last_changed': states.number.family_room_aqara_presence_multi_sensor_fp300_temperature_report_threshold.last_changed.isoformat(), 'last_reported': states.number.family_room_aqara_presence_multi_sensor_fp300_temperature_report_threshold.last_reported.isoformat()},
+              "number.family_room_aqara_presence_multi_sensor_fp300_humidity_report_interval": {'state': states.number.family_room_aqara_presence_multi_sensor_fp300_humidity_report_interval.state, 'last_changed': states.number.family_room_aqara_presence_multi_sensor_fp300_humidity_report_interval.last_changed.isoformat(), 'last_reported': states.number.family_room_aqara_presence_multi_sensor_fp300_humidity_report_interval.last_reported.isoformat()},
+              "number.family_room_aqara_presence_multi_sensor_fp300_temperature_and_humidity_sampling_period": {'state': states.number.family_room_aqara_presence_multi_sensor_fp300_temperature_and_humidity_sampling_period.state, 'last_changed': states.number.family_room_aqara_presence_multi_sensor_fp300_temperature_and_humidity_sampling_period.last_changed.isoformat(), 'last_reported': states.number.family_room_aqara_presence_multi_sensor_fp300_temperature_and_humidity_sampling_period.last_reported.isoformat()},
+              "number.family_room_aqara_presence_multi_sensor_fp300_temperature_report_interval": {'state': states.number.family_room_aqara_presence_multi_sensor_fp300_temperature_report_interval.state, 'last_changed': states.number.family_room_aqara_presence_multi_sensor_fp300_temperature_report_interval.last_changed.isoformat(), 'last_reported': states.number.family_room_aqara_presence_multi_sensor_fp300_temperature_report_interval.last_reported.isoformat()},
+              "number.family_room_aqara_presence_multi_sensor_fp300_humidity_report_threshold": {'state': states.number.family_room_aqara_presence_multi_sensor_fp300_humidity_report_threshold.state, 'last_changed': states.number.family_room_aqara_presence_multi_sensor_fp300_humidity_report_threshold.last_changed.isoformat(), 'last_reported': states.number.family_room_aqara_presence_multi_sensor_fp300_humidity_report_threshold.last_reported.isoformat()},
+              "number.family_room_aqara_presence_multi_sensor_fp300_detection_range": {'state': states.number.family_room_aqara_presence_multi_sensor_fp300_detection_range.state, 'last_changed': states.number.family_room_aqara_presence_multi_sensor_fp300_detection_range.last_changed.isoformat(), 'last_reported': states.number.family_room_aqara_presence_multi_sensor_fp300_detection_range.last_reported.isoformat()},
+              "select.family_room_aqara_presence_multi_sensor_fp300_presence_detection_mode": {'state': states.select.family_room_aqara_presence_multi_sensor_fp300_presence_detection_mode.state, 'last_changed': states.select.family_room_aqara_presence_multi_sensor_fp300_presence_detection_mode.last_changed.isoformat(), 'last_reported': states.select.family_room_aqara_presence_multi_sensor_fp300_presence_detection_mode.last_reported.isoformat()},
+              "select.family_room_aqara_presence_multi_sensor_fp300_presence_sensitivity": {'state': states.select.family_room_aqara_presence_multi_sensor_fp300_presence_sensitivity.state, 'last_changed': states.select.family_room_aqara_presence_multi_sensor_fp300_presence_sensitivity.last_changed.isoformat(), 'last_reported': states.select.family_room_aqara_presence_multi_sensor_fp300_presence_sensitivity.last_reported.isoformat()},
+              "select.family_room_aqara_presence_multi_sensor_fp300_light_sampling": {'state': states.select.family_room_aqara_presence_multi_sensor_fp300_light_sampling.state, 'last_changed': states.select.family_room_aqara_presence_multi_sensor_fp300_light_sampling.last_changed.isoformat(), 'last_reported': states.select.family_room_aqara_presence_multi_sensor_fp300_light_sampling.last_reported.isoformat()},
+              "select.family_room_aqara_presence_multi_sensor_fp300_light_report_mode": {'state': states.select.family_room_aqara_presence_multi_sensor_fp300_light_report_mode.state, 'last_changed': states.select.family_room_aqara_presence_multi_sensor_fp300_light_report_mode.last_changed.isoformat(), 'last_reported': states.select.family_room_aqara_presence_multi_sensor_fp300_light_report_mode.last_reported.isoformat()},
+              "select.family_room_aqara_presence_multi_sensor_fp300_humidity_report_mode": {'state': states.select.family_room_aqara_presence_multi_sensor_fp300_humidity_report_mode.state, 'last_changed': states.select.family_room_aqara_presence_multi_sensor_fp300_humidity_report_mode.last_changed.isoformat(), 'last_reported': states.select.family_room_aqara_presence_multi_sensor_fp300_humidity_report_mode.last_reported.isoformat()},
+              "select.family_room_aqara_presence_multi_sensor_fp300_temperature_and_humidity_sampling": {'state': states.select.family_room_aqara_presence_multi_sensor_fp300_temperature_and_humidity_sampling.state, 'last_changed': states.select.family_room_aqara_presence_multi_sensor_fp300_temperature_and_humidity_sampling.last_changed.isoformat(), 'last_reported': states.select.family_room_aqara_presence_multi_sensor_fp300_temperature_and_humidity_sampling.last_reported.isoformat()},
+              "select.family_room_aqara_presence_multi_sensor_fp300_temperature_report_mode": {'state': states.select.family_room_aqara_presence_multi_sensor_fp300_temperature_report_mode.state, 'last_changed': states.select.family_room_aqara_presence_multi_sensor_fp300_temperature_report_mode.last_changed.isoformat(), 'last_reported': states.select.family_room_aqara_presence_multi_sensor_fp300_temperature_report_mode.last_reported.isoformat()},
+              "select.family_room_aqara_presence_multi_sensor_fp300_led_trigger_indicator_off_start_time": {'state': states.select.family_room_aqara_presence_multi_sensor_fp300_led_trigger_indicator_off_start_time.state, 'last_changed': states.select.family_room_aqara_presence_multi_sensor_fp300_led_trigger_indicator_off_start_time.last_changed.isoformat(), 'last_reported': states.select.family_room_aqara_presence_multi_sensor_fp300_led_trigger_indicator_off_start_time.last_reported.isoformat()},
+              "select.family_room_aqara_presence_multi_sensor_fp300_led_trigger_indicator_off_end_time": {'state': states.select.family_room_aqara_presence_multi_sensor_fp300_led_trigger_indicator_off_end_time.state, 'last_changed': states.select.family_room_aqara_presence_multi_sensor_fp300_led_trigger_indicator_off_end_time.last_changed.isoformat(), 'last_reported': states.select.family_room_aqara_presence_multi_sensor_fp300_led_trigger_indicator_off_end_time.last_reported.isoformat()},
+              "sensor.family_room_aqara_presence_multi_sensor_fp300_target_distance": {'state': states.sensor.family_room_aqara_presence_multi_sensor_fp300_target_distance.state, 'last_changed': states.sensor.family_room_aqara_presence_multi_sensor_fp300_target_distance.last_changed.isoformat(), 'last_reported': states.sensor.family_room_aqara_presence_multi_sensor_fp300_target_distance.last_reported.isoformat()},
+              "sensor.family_room_aqara_presence_multi_sensor_fp300_battery": {'state': states.sensor.family_room_aqara_presence_multi_sensor_fp300_battery.state, 'last_changed': states.sensor.family_room_aqara_presence_multi_sensor_fp300_battery.last_changed.isoformat(), 'last_reported': states.sensor.family_room_aqara_presence_multi_sensor_fp300_battery.last_reported.isoformat()},
+              "sensor.family_room_aqara_presence_multi_sensor_fp300_battery_voltage": {'state': states.sensor.family_room_aqara_presence_multi_sensor_fp300_battery_voltage.state, 'last_changed': states.sensor.family_room_aqara_presence_multi_sensor_fp300_battery_voltage.last_changed.isoformat(), 'last_reported': states.sensor.family_room_aqara_presence_multi_sensor_fp300_battery_voltage.last_reported.isoformat()},
+              "switch.family_room_aqara_presence_multi_sensor_fp300_ai_interference_source_self_identification": {'state': states.switch.family_room_aqara_presence_multi_sensor_fp300_ai_interference_source_self_identification.state, 'last_changed': states.switch.family_room_aqara_presence_multi_sensor_fp300_ai_interference_source_self_identification.last_changed.isoformat(), 'last_reported': states.switch.family_room_aqara_presence_multi_sensor_fp300_ai_interference_source_self_identification.last_reported.isoformat()},
+              "switch.family_room_aqara_presence_multi_sensor_fp300_ai_adaptive_sensitivity": {'state': states.switch.family_room_aqara_presence_multi_sensor_fp300_ai_adaptive_sensitivity.state, 'last_changed': states.switch.family_room_aqara_presence_multi_sensor_fp300_ai_adaptive_sensitivity.last_changed.isoformat(), 'last_reported': states.switch.family_room_aqara_presence_multi_sensor_fp300_ai_adaptive_sensitivity.last_reported.isoformat()},
+              "switch.family_room_aqara_presence_multi_sensor_fp300_led_trigger_indicator_off_schedule": {'state': states.switch.family_room_aqara_presence_multi_sensor_fp300_led_trigger_indicator_off_schedule.state, 'last_changed': states.switch.family_room_aqara_presence_multi_sensor_fp300_led_trigger_indicator_off_schedule.last_changed.isoformat(), 'last_reported': states.switch.family_room_aqara_presence_multi_sensor_fp300_led_trigger_indicator_off_schedule.last_reported.isoformat()}
+            }
+          }
+        }
+      } | tojson }}
+
+automation:
+  # SYNC CONTRACT: Keep both coherence branches synchronized with
+  # home_context_analytics/ha_export_contract.py; structural tests enforce the
+  # exact five-helper freshness and Observer-inactive requirements.
+  # REVIEW PRECONDITION: Observer config hash 6b5fa7a109f6636a is mode restart.
+  # It must remain the sole writer and use non-parallel mode single/restart.
+  # Parallel or otherwise overlapping runs invalidate this gate and require review.
+  - id: home_context_snapshot_push_draft
+    alias: Home Context Snapshot Push (DRAFT)
+    description: "Observe-only export after Observer runs or a feedback button changes. No device actions."
+    triggers:
+      - trigger: event
+        id: observer
+        event_type: automation_triggered
+        event_data:
+          entity_id: automation.home_context_evening_observer
+      - trigger: state
+        id: feedback
+        entity_id:
+          - input_button.home_context_confirm
+          - input_button.home_context_mark_wrong
+          - input_button.home_context_mark_unsure
+      - trigger: state
+        id: diagnostics
+        entity_id:
+          - binary_sensor.garage_occupied
+          - binary_sensor.pir_motion_sensor_2_motion_detection
+          - binary_sensor.pir_motion_sensor_2_sensor_state_motion
+          - binary_sensor.gdo1_motion
+          - binary_sensor.grgdo1_motion
+          - sensor.home_active_room
+      - trigger: time_pattern
+        id: diagnostics
+        minutes: "/5"
+    actions:
+      - variables:
+          observer_event_time: >-
+            {{ trigger.event.time_fired.isoformat() if trigger.id == 'observer' else none }}
+          observer_context_id: >-
+            {{ trigger.event.context.id if trigger.id == 'observer' else none }}
+      - choose:
+          - conditions: "{{ trigger.id == 'observer' }}"
+            sequence:
+              - wait_template: >-
+                  {{
+                    states.input_select.home_context_mode.last_reported >= as_datetime(observer_event_time)
+                    and states.input_select.home_current_activity.last_reported >= as_datetime(observer_event_time)
+                    and states.input_number.home_context_confidence.last_reported >= as_datetime(observer_event_time)
+                    and states.input_text.home_context_summary.last_reported >= as_datetime(observer_event_time)
+                    and states.input_text.home_next_likely_activity.last_reported >= as_datetime(observer_event_time)
+                    and state_attr('automation.home_context_evening_observer', 'current') is not none
+                    and state_attr('automation.home_context_evening_observer', 'current') | int == 0
+                  }}
+                timeout: "00:00:10"
+                continue_on_timeout: true
+              - if:
+                  - condition: template
+                    value_template: >-
+                      {{
+                        states.input_select.home_context_mode.last_reported >= as_datetime(observer_event_time)
+                        and states.input_select.home_current_activity.last_reported >= as_datetime(observer_event_time)
+                        and states.input_number.home_context_confidence.last_reported >= as_datetime(observer_event_time)
+                        and states.input_text.home_context_summary.last_reported >= as_datetime(observer_event_time)
+                        and states.input_text.home_next_likely_activity.last_reported >= as_datetime(observer_event_time)
+                        and state_attr('automation.home_context_evening_observer', 'current') is not none
+                        and state_attr('automation.home_context_evening_observer', 'current') | int == 0
+                      }}
+                then: []
+                else:
+                  - action: system_log.write
+                    data:
+                      level: warning
+                      message: "Home Context snapshot export stopped: Observer helper coherence timeout."
+                  - stop: "Observer helper coherence proof did not complete; no snapshot was posted."
+                    error: true
+          - conditions: "{{ trigger.id in ['feedback', 'diagnostics'] }}"
+            sequence:
+              - delay: "00:00:01"
+              - wait_template: >-
+                  {{
+                    state_attr('automation.home_context_evening_observer', 'current') is not none
+                    and state_attr('automation.home_context_evening_observer', 'current') | int == 0
+                  }}
+                timeout: "00:00:10"
+                continue_on_timeout: true
+              - if:
+                  - condition: template
+                    value_template: >-
+                      {{
+                        state_attr('automation.home_context_evening_observer', 'current') is not none
+                        and state_attr('automation.home_context_evening_observer', 'current') | int == 0
+                      }}
+                then: []
+                else:
+                  - action: system_log.write
+                    data:
+                      level: warning
+                      message: "Home Context snapshot export stopped: Observer completion was not provable."
+                  - stop: "Observer was active or its completion state was unavailable; no snapshot was posted."
+                    error: true
+        default:
+          - stop: "Unrecognized snapshot-export trigger; no snapshot was posted."
+            error: true
+      - continue_on_error: true
+        action: rest_command.home_context_post_snapshot
+    mode: queued
+    max: 3

@@ -1,0 +1,29 @@
+{
+  "title": "Signal Diagnostics Preview",
+  "path": "signal-diagnostics-preview",
+  "icon": "mdi:source-branch-check",
+  "type": "sections",
+  "max_columns": 4,
+  "sections": [
+    {
+      "type": "grid",
+      "column_span": 4,
+      "cards": [
+        {
+          "type": "vertical-stack",
+          "grid_options": {
+            "columns": "full",
+            "rows": "auto"
+          },
+          "cards": [
+            {
+              "type": "markdown",
+              "title": "Signal diagnostics",
+              "content": "{% set s = states('sensor.home_context_signal_diagnostics') %}\n{% set d = state_attr('sensor.home_context_signal_diagnostics', 'issue_card') %}\n{% if s in ['unknown', 'unavailable'] %}\n## Diagnostics unavailable\nThe private diagnostics report is missing, stale, malformed, or unreachable. No healthy result is inferred.\n\n_Home Context AI Actions: **OFF** · no device controls_\n{% elif d %}\n## {{ d.state }} · {{ d.title }}\n\n**Affected helper:** `{{ d.affected_helper }}`  \n**Suspect source:** `{{ d.suspect_source }}` · age {{ (d.suspect_age_seconds / 60) | round(0) }} min  \n**Comparison:** {{ d.comparison_sources | join(', ') }}  \n**Downstream effect:** {{ d.downstream_effect | join(', ') }}\n\n{{ d.evidence }}\n\n{% if d.proposed_mutation %}**Proposed one-line repair:** replace `{{ d.proposed_mutation.suspect_source }}` with `{{ d.proposed_mutation.replacement_source }}`.  \n**Confidence:** {{ d.confidence }}% · **Rollback:** ready{% endif %}\n\nDetection **{{ d.lifecycle[0].state }}** → Proposal **{{ d.lifecycle[1].state }}** → Approval **{{ d.lifecycle[2].state }}** → Verification **{{ d.lifecycle[3].state }}** → Resolution **{{ d.lifecycle[4].state }}**  \nRollback **{{ d.lifecycle[5].state }}**\n\n{% if d.verification.failed %}⚠️ **Verification failed:** {{ d.verification.result }}  \n**Corrective path:** keep the issue open, re-evaluate fresh candidates, and use the displayed rollback if readback is uncertain.{% elif d.verification.physical_canary_pending %}⚠️ **Physical canary pending:** walk through the Garage PIR field, then verify ON and clear transitions.{% endif %}\n\n_Home Context AI Actions: **OFF** · configuration repair only · no device controls · dry-run default_\n{% else %}\n## {{ s }}\nNo Home Context signal contradiction is currently reported.\n\n_Report generated {{ state_attr('sensor.home_context_signal_diagnostics', 'generated_at') }} · Home Context AI Actions: **OFF**_\n{% endif %}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

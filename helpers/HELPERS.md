@@ -15,28 +15,31 @@ not YAML. This file documents their definitions for reference.
 | `binary_sensor.exterior_door_open` | `{{ is_state('binary_sensor.hai_front_door','on') or is_state('binary_sensor.hai_garage_door','on') or is_state('binary_sensor.hai_deck_door','on') or states('cover.gdo1_door') in ['open','opening'] or states('cover.grgdo1_door') in ['open','opening'] }}` |
 | `binary_sensor.recent_arrival` | `{{ (now().timestamp() - (state_attr('input_datetime.home_last_entry','timestamp') | float(0))) < 480 }}` |
 
-## Template binary sensors — per-room occupancy (11 rooms)
+## Template binary sensors — per-room occupancy (12 rooms)
 
 Each ORs together the real motion / mmWave / FP2 sensors for that room so a single
 flaky sensor cannot pin a room occupied.
 
 | Room helper | Kind | Source sensors (summarized) |
 |---|---|---|
-| `binary_sensor.family_room_occupied` | template | Aqara FP2 zones 1 + 3 + Lumi aq2 occupancy |
+| `binary_sensor.family_room_occupied` | template | Aqara FP2 zones 1 + 3 + Lumi aq2 occupancy + **Aqara FP300** mmWave presence & PIR (added 08-12 for still-person coverage). Not included: eWeLink SNZB-03P (= the "Sonoff Zigbee motion" sensor) — flaky, drops offline, no area assigned. |
 | `binary_sensor.kitchen_occupied` | template | kitchen motion group + kitchen occupancy group + FP2 zone 2 |
 | `binary_sensor.office_occupied` | template | 3 ESPHome presence sensors |
 | `binary_sensor.foyer_occupied` | template | ESPHome presence sensor |
-| `binary_sensor.master_bedroom_occupied` | template | 3 mmWave (human / moving / still) + 2 motion sensors |
+| `binary_sensor.master_bedroom_occupied` | template | `master_bed_presence` (clean in-bed) + Unity mmWave has_human / has_moving / has_still human target (`master_motion_mater_unity_…`) + `multisensor_motion`. NOTE: Unity was renamed to the long `master_motion_mater_unity_*` IDs; the old short `unity_has_*` + `plate04_motion` refs were dead — fixed 08-08. Energy/distance sensors kept for diagnostics only. |
 | `binary_sensor.master_bath_occupied` | template | closet motion |
 | `binary_sensor.basement_occupied` | template | ESP radar (movement OR occupancy_or_movement) |
 | `binary_sensor.basement_landing_occupied` | **group** | `motion_sensor_31_ac_68_motion` + `basement_door_intrusion` |
-| `binary_sensor.theater_occupied` | **group** | `esp_radar_ld1115h_occupancy_or_movement` (LD1115H mmWave radar — working; this radar is also referenced by `basement_occupied`) |
+| `binary_sensor.theater_occupied` | template | LD1115H mmWave radar (`esp_radar_ld1115h_movement` OR `_occupancy_or_movement`) — same radar as `basement_occupied`. Converted group→template 08-08 so an offline radar degrades to `off` (a group reported `unavailable`, which poisoned `home_active_room` → "unknown"). |
 | `binary_sensor.shop_occupied` | **group** | `hai_motion_shop` + `hai_motion_shopt` |
 | `binary_sensor.upstairs_hall_occupied` | template | Zigbee motion (Aqara aq2) |
+| `binary_sensor.garage_occupied` | template | Z-Wave garage PIR (`pir_motion_sensor_2_motion_detection`, area=Garage — live) OR the two ratgdo door-opener motions (`gdo1_motion` main + `grgdo1_motion` small, secondary). Excludes `motion_driveway` (outdoor). |
 
-> The `_occupied` helpers are HA **template** binary sensors, **except** Theater,
-> Shop, and Basement Landing, which are HA **`group`** (binary_sensor) helpers
-> (added by a later session).
+> The `_occupied` helpers are HA **template** binary sensors, **except**
+> Shop and Basement Landing, which are HA **`group`** (binary_sensor) helpers.
+> (Theater was a group but was converted to a template 08-08 so a flaky radar
+> degrades to `off` instead of `unavailable` — templates using `is_state` are
+> robust to unavailable members; single-member groups are not.)
 
 ## Template sensors
 
@@ -88,6 +91,12 @@ whenever the current classification is wrong; the automation snapshots the momen
 | `input_button.home_context_mark_wrong` | input_button | Tap when the current classification is incorrect |
 | `counter.home_context_corrections` | counter | Running count of wrong flags (target: **< 5 / week**) |
 | `input_text.home_context_last_correction` | input_text (255) | Human-readable snapshot of the last flag |
+| `input_datetime.home_context_measurement_start` | input_datetime | When the measurement week began (accuracy is scored from here) |
+
+**Measurement week started 2026-08-09 21:52.** The Monday review is start-date-aware
+and won't green-light Phase 4 until a full ≥7-day window shows **< 5 wrong/week**. The
+Mark-WRONG button is on both the context dashboard (Accuracy Feedback) and the
+**Home Command Mobile** dashboard; the context dashboard also shows a "Measuring since" tile.
 
 `automation.home_context_mark_wrong` (see `../automations/`) fires on the button:
 it increments the counter, writes the snapshot (`mode / activity / confidence /

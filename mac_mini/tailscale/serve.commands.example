@@ -1,0 +1,13 @@
+# REVIEW ONLY — DO NOT RUN UNTIL OWNER APPROVAL.
+# Receiver must already be bound to 127.0.0.1. Never enable Funnel.
+# Capture and review all existing mappings before adding the dedicated port.
+tailscale serve status --json > REPLACE_WITH_PRIVATE_REVIEW_DIRECTORY/serve-before.json
+
+# HTTPS 8443 is reserved by the existing BriefDash mapping. Do not touch it.
+# Add only the reviewed Home Context mapping on dedicated HTTPS port 9443.
+tailscale serve --bg --https=9443 http://127.0.0.1:8765
+tailscale serve status --json > REPLACE_WITH_PRIVATE_REVIEW_DIRECTORY/serve-after.json
+
+# Roll back only the dedicated Home Context mapping, then prove other mappings remain.
+tailscale serve --https=9443 off
+tailscale serve status --json > REPLACE_WITH_PRIVATE_REVIEW_DIRECTORY/serve-rollback.json

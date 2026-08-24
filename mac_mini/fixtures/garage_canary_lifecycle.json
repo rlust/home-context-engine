@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "helper_entity_id": "binary_sensor.garage_occupied",
+  "replacement_source": "binary_sensor.pir_motion_sensor_2_sensor_state_motion",
+  "failed_canary": {
+    "observed_at": "2026-08-23T14:28:23Z",
+    "replacement_last_updated": "2026-08-23T06:01:51Z",
+    "replacement_state": "off",
+    "helper_state": "off",
+    "replacement_clear_cycles": 0,
+    "helper_clear_cycles": 0,
+    "expected_status": "Verification failed"
+  },
+  "resolved_canary": {
+    "observed_at": "2026-08-23T14:37:54Z",
+    "replacement_last_updated": "2026-08-23T14:37:54Z",
+    "replacement_state": "off",
+    "helper_state": "off",
+    "replacement_clear_cycles": 2,
+    "helper_clear_cycles": 2,
+    "expected_status": "Resolved"
+  }
+}
