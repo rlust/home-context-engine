@@ -48,6 +48,9 @@ device/account identifiers have been replaced with placeholders.
 - Added a fail-closed signal-diagnostics panel and a persistent visual receipt
   for Confirm / Wrong / Unsure feedback. Both surfaces are read-only and expose
   no repair or device-control action.
+- Added a deduplicated local persistent alert after any signal-diagnostics fault
+  remains stable for five minutes. Recovery clears it automatically; it does
+  not send mobile push, repair configuration, or control a device.
 
 ### Phase 4 audit + integration
 - Suggestion layer (3 automations): `dynamic_suggestions` (text only), `dismiss_suggestion` (feedback only), `approve_denon_music_lighting` (only device-capable).

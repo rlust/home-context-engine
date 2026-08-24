@@ -1,0 +1,52 @@
+{
+  "id": "1787577197859",
+  "alias": "Home Context - Signal Diagnostics Alert",
+  "description": "Observe-only Newark alert. If private Home Context signal diagnostics remains non-Healthy for five minutes, create or update one fixed Home Assistant persistent notification. Dismiss it on Healthy or Resolved. Never repairs configuration, controls a device, sends a mobile push, or changes AI Actions.",
+  "triggers": [
+    { "trigger": "state", "entity_id": "sensor.home_context_signal_diagnostics", "to": "Investigate", "for": { "minutes": 5 }, "id": "investigate", "note": "Alert only after the diagnostic fault remains stable for five continuous minutes." },
+    { "trigger": "state", "entity_id": "sensor.home_context_signal_diagnostics", "to": "Repair proposed", "for": { "minutes": 5 }, "id": "repair_proposed", "note": "A bounded proposal remains observe-only until separately approved." },
+    { "trigger": "state", "entity_id": "sensor.home_context_signal_diagnostics", "to": "Approval needed", "for": { "minutes": 5 }, "id": "approval_needed" },
+    { "trigger": "state", "entity_id": "sensor.home_context_signal_diagnostics", "to": "Verifying", "for": { "minutes": 5 }, "id": "verifying" },
+    { "trigger": "state", "entity_id": "sensor.home_context_signal_diagnostics", "to": "unavailable", "for": { "minutes": 5 }, "id": "unavailable", "note": "Fail closed when the private diagnostics report is unavailable." },
+    { "trigger": "state", "entity_id": "sensor.home_context_signal_diagnostics", "to": "unknown", "for": { "minutes": 5 }, "id": "unknown", "note": "Fail closed when the diagnostics state is unknown." },
+    { "trigger": "state", "entity_id": "sensor.home_context_signal_diagnostics", "to": "Healthy", "id": "healthy", "note": "Clear the fixed notification when diagnostics recovers." },
+    { "trigger": "state", "entity_id": "sensor.home_context_signal_diagnostics", "to": "Resolved", "id": "resolved", "note": "Resolved is a recovery lifecycle state and clears the alert." }
+  ],
+  "conditions": [],
+  "actions": [
+    {
+      "choose": [
+        {
+          "conditions": [
+            { "condition": "trigger", "id": ["investigate", "repair_proposed", "approval_needed", "verifying", "unavailable", "unknown"] }
+          ],
+          "sequence": [
+            {
+              "action": "persistent_notification.create",
+              "data": {
+                "notification_id": "home_context_signal_diagnostics_alert",
+                "title": "Home Context signal issue",
+                "message": "{% set d = state_attr('sensor.home_context_signal_diagnostics', 'issue_card') %}\n**Status:** {{ states('sensor.home_context_signal_diagnostics') }}\n**Issue count:** {{ state_attr('sensor.home_context_signal_diagnostics', 'issue_count') | int(0) }}\n**Report generated:** {{ state_attr('sensor.home_context_signal_diagnostics', 'generated_at') or 'unavailable' }}\n{% if d and d.get('affected_helper') %}\n**Affected helper:** `{{ d.get('affected_helper') }}`\n**Evidence:** {{ d.get('evidence', 'See Signal Diagnostics for details.') }}\n{% if d.get('proposed_mutation') %}**Bounded proposal:** replace `{{ d.get('proposed_mutation').get('suspect_source') }}` with `{{ d.get('proposed_mutation').get('replacement_source') }}` after explicit approval.{% endif %}\n{% endif %}\n[Open Signal Diagnostics](/home-command/context#hc-signals)\n\nObserve-only alert. AI Actions remains OFF. No repair or device command was executed."
+              },
+              "note": "Fixed notification_id deduplicates repeated fault alerts by updating one persistent notification."
+            }
+          ]
+        },
+        {
+          "conditions": [
+            { "condition": "trigger", "id": ["healthy", "resolved"] }
+          ],
+          "sequence": [
+            {
+              "action": "persistent_notification.dismiss",
+              "data": { "notification_id": "home_context_signal_diagnostics_alert" },
+              "note": "Recovery removes only this automation's persistent notification."
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "mode": "single",
+  "max_exceeded": "silent"
+}
