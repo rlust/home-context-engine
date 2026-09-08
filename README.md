@@ -102,6 +102,11 @@ aggregate and diagnostics deployment evidence is in
 
 ## Design principles
 
+Latest verified operational checkpoint: [2026-09-08 dashboard and measurement
+update](docs/operations/HOME_CONTEXT_CHECKPOINT_2026_09_08.md). This documents
+live changes without exporting household locations, feedback records, or the
+production dashboard. Existing dashboard exports remain dated references.
+
 1. Observe before acting; the safety gate stays OFF until accuracy is proven.
 2. Richer sensing over more hardcoded rules.
 3. Gate any future action on confidence.
