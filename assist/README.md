@@ -58,3 +58,33 @@ restart command is assumed here.
 
 This trial intentionally does not deploy, register an Assist pipeline, or write
 to Home Assistant.
+
+## Verified Newark Home Context update — 2026-08-26
+
+The live Newark Home Assistant evaluation added the following observation-only
+signals and presentation notes. This repository records the design boundary;
+it is not the live configuration source of truth.
+
+- `home_context_exterior_activity` is a short, resettable observation signal
+  for qualified entry, departure, garage use, or likely outdoor time. It uses
+  front-door, garage-door, deck-door, and garage-cover transitions only. It is
+  not an Outside room, does not change occupancy, and does not control devices.
+- `home_context_exterior_activity_observer` holds that signal for 15 minutes
+  after a qualifying transition, then resets it. The automation uses restart
+  behavior so a new transition refreshes the observation window.
+- A one-week, metadata-only camera-motion trial counts driveway/front-door
+  motion transitions and stores only a count plus a concise last-event receipt.
+  No images or camera content are captured or exported. The trial is isolated
+  from occupancy, exterior activity, recommendations, and device control.
+- The Home Command Home Context view now places a display-only Exterior
+  Activity panel directly below the header. It shows status and trial metadata
+  with observer-only explanatory copy and contains no controls.
+- Feedback receipts for confirm, unsure, and correction now retain
+  second-level timestamps so distinct reviewed events remain distinguishable
+  for activity-level accuracy and calibration review.
+
+The safety boundary remains unchanged: Home Context is observe-only,
+`ai_actions_enabled` is OFF, and no device-control behavior is enabled. No
+machine-specific configuration, network address, user/device identifier, raw
+camera event, historical feedback record, or dashboard backup is part of this
+repository update.
