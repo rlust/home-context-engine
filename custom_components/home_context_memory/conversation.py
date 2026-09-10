@@ -23,6 +23,7 @@ from homeassistant.helpers.intent import IntentResponse
 from .const import DEFAULT_MAX_RESULTS, DOMAIN
 from .storage import MemoryStore
 from .context_brief import build_context_brief
+from .topology import read_topology
 
 CHATGPT_AGENT = "conversation.chatgpt_new"
 
@@ -140,7 +141,7 @@ class HomeContextChatGPTConversationEntity(HomeContextMemoryConversationEntity):
 
         memories = await self._memory.recall(text, 3)
         summary = await self._memory.recall_summary(text)
-        brief = build_context_brief(self.hass, text, memories, summary)
+        brief = build_context_brief(self.hass, text, memories, summary, read_topology(self.hass, text))
         await self._memory.record_context_brief(brief.categories, brief.sources, brief.memory_count)
         result = await async_converse(
             hass=self.hass,

@@ -17,6 +17,16 @@ device/account identifiers have been replaced with placeholders.
 - The latest Confirm was recorded as Active / Working at 88% in Office;
   confirmations total 32. The private aggregate review remains below the
   Phase 4 advancement gates, so device-capable actions remain locked.
+- The Home Context feedback section now shows a read-only freshness warning
+  beside Confirm / Wrong / Unsure. Ratings are identified as eligible only
+  when `sensor.home_context_observer_age` is 10 minutes or less; stale presses
+  remain auditable but are explicitly not presented as clean accuracy labels.
+- The Goals & present state surface was redesigned on 2026-08-24 as a compact,
+  renderer-safe Apple-style Markdown card to the right of Unsure. It keeps the
+  current activity, mode, room, confidence, observer age, progress toward 50
+  scored reviews, the 20-sample/activity target, the <=10% calibration target,
+  next likely activity, and the AI Actions safety lock visible without treating
+  recorded confirmation taps as scored outcomes.
 - Full credential-free rollout evidence, hashes, rollback instructions, and
   the current advancement decision are versioned under
   `docs/operations/`.
@@ -48,6 +58,13 @@ device/account identifiers have been replaced with placeholders.
 - Added a fail-closed signal-diagnostics panel and a persistent visual receipt
   for Confirm / Wrong / Unsure feedback. Both surfaces are read-only and expose
   no repair or device-control action.
+- Refined the Goals & present state card into a compact Apple-style status and
+  progress surface; the live dashboard was updated through the managed API and
+  visually verified with current Home Assistant state.
+- Moved Present state into a full-width one-line status strip above the feedback
+  controls on 2026-08-24. The adjacent card now contains only Phase 1 progress
+  and the AI Actions safety status, reducing vertical density and avoiding
+  duplicate state information.
 
 ### Phase 4 audit + integration
 - Suggestion layer (3 automations): `dynamic_suggestions` (text only), `dismiss_suggestion` (feedback only), `approve_denon_music_lighting` (only device-capable).

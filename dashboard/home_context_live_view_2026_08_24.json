@@ -206,6 +206,35 @@
             "icon": "mdi:check-decagram"
           },
           {
+            "type": "markdown",
+            "content": "{% set age = states('sensor.home_context_observer_age') | float(999) %}\n{% if age <= 10 %}\n**Feedback eligible:** the Observer refreshed {{ age | round(0) }} minutes ago. Your rating will be attached to this current prediction.\n{% else %}\n**Feedback warning:** this prediction is {{ age | round(0) }} minutes old. Refresh the Home Context view and wait for a fresh Observer result before rating it. The press may still be recorded for audit, but do not rely on it as a scored example until stale-feedback filtering is enabled.\n{% endif %}\n\nObserver age: **{{ states('sensor.home_context_observer_age') }} min** · Last receipt: **{{ states('input_text.home_context_last_feedback') }}** · AI Actions: **{{ states('input_boolean.ai_actions_enabled') | upper }}**",
+            "entity_id": [
+              "sensor.home_context_observer_age",
+              "input_text.home_context_last_feedback",
+              "input_boolean.ai_actions_enabled"
+            ],
+            "grid_options": {
+              "columns": "full",
+              "rows": "auto"
+            }
+          },
+          {
+            "type": "markdown",
+            "content": "**PRESENT STATE**  ·  **{{ states('input_select.home_current_activity') }}**  ·  {{ states('input_select.home_context_mode') }}  ·  {{ states('sensor.home_active_room') }}  ·  **{{ states('input_number.home_context_confidence') }}%** confidence  ·  Observer {{ states('sensor.home_context_observer_age') }} min  ·  Next: {{ states('input_text.home_next_likely_activity') }}",
+            "entity_id": [
+              "input_select.home_current_activity",
+              "input_select.home_context_mode",
+              "sensor.home_active_room",
+              "input_number.home_context_confidence",
+              "sensor.home_context_observer_age",
+              "input_text.home_next_likely_activity"
+            ],
+            "grid_options": {
+              "columns": "full",
+              "rows": 1
+            }
+          },
+          {
             "type": "custom:bubble-card",
             "card_type": "button",
             "button_type": "name",
@@ -266,6 +295,18 @@
             "grid_options": {
               "columns": 6,
               "rows": 1
+            }
+          },
+          {
+            "type": "markdown",
+            "content": "**PHASE 1 PROGRESS**\n\n**{{ states('counter.home_context_confirmations') }} / 50** recorded confirmations\n\n`{{ '█' * ([states('counter.home_context_confirmations') | int(0) // 5, 10] | min) }}{{ '░' * (10 - [states('counter.home_context_confirmations') | int(0) // 5, 10] | min) }}`\n\n50 scored reviews · 20 samples/activity · ≤10% error\n\nAI Actions **{{ states('input_boolean.ai_actions_enabled') | upper }}**",
+            "entity_id": [
+              "counter.home_context_confirmations",
+              "input_boolean.ai_actions_enabled"
+            ],
+            "grid_options": {
+              "columns": 6,
+              "rows": "auto"
             }
           },
           {

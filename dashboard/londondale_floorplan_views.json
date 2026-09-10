@@ -1,0 +1,1092 @@
+{
+  "title": "Londondale floorplan views",
+  "views": [
+    {
+      "title": "Londondale",
+      "path": "londondale",
+      "icon": "mdi:home-analytics",
+      "type": "sections",
+      "max_columns": 4,
+      "badges": [
+        {
+          "type": "entity",
+          "entity": "person.randy",
+          "show_name": true,
+          "show_state": true
+        },
+        {
+          "type": "entity",
+          "entity": "person.kim",
+          "show_name": true,
+          "show_state": true
+        },
+        {
+          "type": "entity",
+          "entity": "input_select.home_context_mode",
+          "show_name": true,
+          "show_state": true
+        },
+        {
+          "type": "entity",
+          "entity": "input_number.home_context_confidence",
+          "show_name": true,
+          "show_state": true
+        }
+      ],
+      "sections": [
+        {
+          "column_span": 4,
+          "cards": [
+            {
+              "type": "heading",
+              "heading": "Londondale",
+              "heading_style": "title",
+              "icon": "mdi:home-city-outline"
+            },
+            {
+              "type": "markdown",
+              "content": "## Home in perspective\n\nA visual study of Newark home conditions, grounded in the Londondale floorplans and exterior references. **Plans are preliminary; use them for navigation and context, not construction or safety logic.**",
+              "grid_options": {
+                "columns": "full",
+                "rows": "auto"
+              }
+            },
+            {
+              "type": "picture-elements",
+              "image": "/local/01-floor-plan.svg?v=436d5aa3",
+              "alt_text": "Londondale first-floor plan with live room occupancy",
+              "tap_action": {
+                "action": "none"
+              },
+              "grid_options": {
+                "columns": "full",
+                "rows": "auto"
+              },
+              "elements": [
+                {
+                  "type": "state-icon",
+                  "entity": "binary_sensor.foyer_occupied",
+                  "state_color": true,
+                  "style": {
+                    "left": "30%",
+                    "top": "61%"
+                  },
+                  "tap_action": {
+                    "action": "more-info"
+                  }
+                },
+                {
+                  "type": "state-label",
+                  "entity": "binary_sensor.foyer_occupied",
+                  "style": {
+                    "left": "30%",
+                    "top": "64%",
+                    "color": "#243e49",
+                    "font-size": "12px",
+                    "background-color": "rgba(255,255,255,0.9)",
+                    "padding": "2px 6px",
+                    "border-radius": "8px"
+                  }
+                },
+                {
+                  "type": "state-icon",
+                  "entity": "binary_sensor.family_room_occupied",
+                  "state_color": true,
+                  "style": {
+                    "left": "32.5%",
+                    "top": "29%"
+                  },
+                  "tap_action": {
+                    "action": "more-info"
+                  }
+                },
+                {
+                  "type": "state-label",
+                  "entity": "binary_sensor.family_room_occupied",
+                  "style": {
+                    "left": "32.5%",
+                    "top": "32%",
+                    "color": "#243e49",
+                    "font-size": "12px",
+                    "background-color": "rgba(255,255,255,0.9)",
+                    "padding": "2px 6px",
+                    "border-radius": "8px"
+                  }
+                },
+                {
+                  "type": "state-icon",
+                  "entity": "binary_sensor.kitchen_occupied",
+                  "state_color": true,
+                  "style": {
+                    "left": "55%",
+                    "top": "35%"
+                  },
+                  "tap_action": {
+                    "action": "more-info"
+                  }
+                },
+                {
+                  "type": "state-label",
+                  "entity": "binary_sensor.kitchen_occupied",
+                  "style": {
+                    "left": "55%",
+                    "top": "38%",
+                    "color": "#243e49",
+                    "font-size": "12px",
+                    "background-color": "rgba(255,255,255,0.9)",
+                    "padding": "2px 6px",
+                    "border-radius": "8px"
+                  }
+                },
+                {
+                  "type": "state-icon",
+                  "entity": "binary_sensor.garage_occupied",
+                  "state_color": true,
+                  "style": {
+                    "left": "68%",
+                    "top": "65%"
+                  },
+                  "tap_action": {
+                    "action": "more-info"
+                  }
+                },
+                {
+                  "type": "state-label",
+                  "entity": "binary_sensor.garage_occupied",
+                  "style": {
+                    "left": "68%",
+                    "top": "68%",
+                    "color": "#243e49",
+                    "font-size": "12px",
+                    "background-color": "rgba(255,255,255,0.9)",
+                    "padding": "2px 6px",
+                    "border-radius": "8px"
+                  }
+                },
+                {
+                  "type": "state-icon",
+                  "entity": "binary_sensor.office_occupied",
+                  "state_color": true,
+                  "style": {
+                    "left": "17%",
+                    "top": "36%"
+                  },
+                  "tap_action": {
+                    "action": "more-info"
+                  }
+                },
+                {
+                  "type": "state-label",
+                  "entity": "binary_sensor.office_occupied",
+                  "style": {
+                    "left": "17%",
+                    "top": "39%",
+                    "color": "#243e49",
+                    "font-size": "12px",
+                    "background-color": "rgba(255,255,255,0.9)",
+                    "padding": "2px 6px",
+                    "border-radius": "8px"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "column_span": 2,
+          "cards": [
+            {
+              "type": "heading",
+              "heading": "Present state",
+              "heading_style": "subtitle",
+              "icon": "mdi:home-analytics"
+            },
+            {
+              "type": "grid",
+              "columns": 2,
+              "square": false,
+              "cards": [
+                {
+                  "type": "tile",
+                  "entity": "input_select.home_context_mode",
+                  "name": "Mode",
+                  "icon": "mdi:home-analytics",
+                  "state_content": "state"
+                },
+                {
+                  "type": "tile",
+                  "entity": "input_select.home_current_activity",
+                  "name": "Activity",
+                  "icon": "mdi:motion-play-outline",
+                  "state_content": "state"
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.residents_present",
+                  "name": "Residents",
+                  "icon": "mdi:account-group-outline",
+                  "state_content": "state"
+                },
+                {
+                  "type": "tile",
+                  "entity": "input_number.home_context_confidence",
+                  "name": "Confidence",
+                  "icon": "mdi:gauge",
+                  "state_content": "state"
+                }
+              ]
+            },
+            {
+              "type": "markdown",
+              "content": "**Residents:** {{ states('sensor.residents_present') }}  \n**Observer age:** {{ states('sensor.home_context_observer_age') }} min  \n**AI actions:** {{ states('input_boolean.ai_actions_enabled') | upper }}",
+              "entity_id": [
+                "sensor.residents_present",
+                "sensor.home_context_observer_age",
+                "input_boolean.ai_actions_enabled"
+              ],
+              "grid_options": {
+                "columns": "full",
+                "rows": "auto"
+              }
+            }
+          ]
+        },
+        {
+          "column_span": 2,
+          "cards": [
+            {
+              "type": "heading",
+              "heading": "Rooms",
+              "heading_style": "subtitle",
+              "icon": "mdi:floor-plan"
+            },
+            {
+              "type": "grid",
+              "columns": 2,
+              "square": false,
+              "cards": [
+                {
+                  "type": "tile",
+                  "entity": "binary_sensor.foyer_occupied",
+                  "name": "Foyer",
+                  "icon": "mdi:door-open",
+                  "state_content": [
+                    "state",
+                    "last_changed"
+                  ]
+                },
+                {
+                  "type": "tile",
+                  "entity": "binary_sensor.family_room_occupied",
+                  "name": "Family Room",
+                  "icon": "mdi:sofa-outline",
+                  "state_content": [
+                    "state",
+                    "last_changed"
+                  ]
+                },
+                {
+                  "type": "tile",
+                  "entity": "binary_sensor.kitchen_occupied",
+                  "name": "Kitchen",
+                  "icon": "mdi:chef-hat",
+                  "state_content": [
+                    "state",
+                    "last_changed"
+                  ]
+                },
+                {
+                  "type": "tile",
+                  "entity": "binary_sensor.office_occupied",
+                  "name": "Office",
+                  "icon": "mdi:desk",
+                  "state_content": [
+                    "state",
+                    "last_changed"
+                  ]
+                },
+                {
+                  "type": "tile",
+                  "entity": "binary_sensor.master_bedroom_occupied",
+                  "name": "Master Bedroom",
+                  "icon": "mdi:bed",
+                  "state_content": [
+                    "state",
+                    "last_changed"
+                  ]
+                },
+                {
+                  "type": "tile",
+                  "entity": "binary_sensor.garage_occupied",
+                  "name": "Garage",
+                  "icon": "mdi:garage",
+                  "state_content": [
+                    "state",
+                    "last_changed"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "column_span": 4,
+          "cards": [
+            {
+              "type": "heading",
+              "heading": "Home study",
+              "heading_style": "subtitle",
+              "icon": "mdi:image-multiple-outline"
+            },
+            {
+              "type": "grid",
+              "columns": 1,
+              "square": false,
+              "cards": [
+                {
+                  "type": "picture",
+                  "image": "/local/londondale-exterior.svg",
+                  "alt_text": "Northwest perspective of Londondale",
+                  "tap_action": {
+                    "action": "none"
+                  }
+                }
+              ],
+              "grid_options": {
+                "columns": "full",
+                "rows": "auto"
+              }
+            },
+            {
+              "type": "button",
+              "name": "Explore interactive 3D",
+              "icon": "mdi:cube-scan",
+              "tap_action": {
+                "action": "url",
+                "url_path": "https://londondale-home-gallery.rlust.chatgpt.site/model/index.html"
+              },
+              "grid_options": {
+                "columns": 6,
+                "rows": 2
+              }
+            },
+            {
+              "type": "button",
+              "name": "Open floorplans ZIP and notes",
+              "icon": "mdi:open-in-new",
+              "tap_action": {
+                "action": "url",
+                "url_path": "https://londondale-home-gallery.rlust.chatgpt.site/floors/interior-plans.zip"
+              },
+              "grid_options": {
+                "columns": 6,
+                "rows": 2
+              }
+            },
+            {
+              "type": "markdown",
+              "content": "Gallery assets are study references. Keep operational decisions tied to live Home Assistant entities and validated sensors.",
+              "grid_options": {
+                "columns": "full",
+                "rows": "auto"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Floorplans",
+      "path": "floorplans",
+      "icon": "mdi:floor-plan",
+      "type": "sections",
+      "max_columns": 4,
+      "badges": [
+        {
+          "type": "entity",
+          "entity": "input_select.home_current_activity",
+          "show_name": true,
+          "show_state": true
+        },
+        {
+          "type": "entity",
+          "entity": "sensor.residents_present",
+          "show_name": true,
+          "show_state": true
+        },
+        {
+          "type": "entity",
+          "entity": "input_number.home_context_confidence",
+          "show_name": true,
+          "show_state": true
+        }
+      ],
+      "sections": [
+        {
+          "column_span": 4,
+          "cards": [
+            {
+              "type": "heading",
+              "heading": "First floor",
+              "heading_style": "title",
+              "icon": "mdi:home-floor-1"
+            },
+            {
+              "type": "picture-elements",
+              "image": "/local/01-floor-plan.svg?v=436d5aa3",
+              "alt_text": "First floor plan with live occupancy, light, and device states",
+              "elements": [
+                {
+                  "type": "state-icon",
+                  "entity": "binary_sensor.foyer_occupied",
+                  "state_color": true,
+                  "style": {
+                    "left": "30%",
+                    "top": "61%"
+                  },
+                  "tap_action": {
+                    "action": "more-info"
+                  }
+                },
+                {
+                  "type": "state-label",
+                  "entity": "input_select.first_floor_foyer_name",
+                  "style": {
+                    "left": "32%",
+                    "top": "57%",
+                    "color": "#ffffff",
+                    "font-size": "11px",
+                    "font-weight": "500",
+                    "background-color": "rgba(22, 50, 62, 0.82)",
+                    "padding": "2px 6px",
+                    "border-radius": "10px",
+                    "white-space": "nowrap"
+                  },
+                  "prefix": ""
+                },
+                {
+                  "type": "state-icon",
+                  "entity": "light.ceiling",
+                  "state_color": true,
+                  "style": {
+                    "left": "34%",
+                    "top": "61%"
+                  },
+                  "tap_action": {
+                    "action": "more-info"
+                  }
+                },
+                {
+                  "type": "state-icon",
+                  "entity": "binary_sensor.family_room_occupied",
+                  "state_color": true,
+                  "style": {
+                    "left": "32.5%",
+                    "top": "29%"
+                  },
+                  "tap_action": {
+                    "action": "more-info"
+                  }
+                },
+                {
+                  "type": "state-label",
+                  "entity": "input_select.first_floor_family_room_name",
+                  "style": {
+                    "left": "36.5%",
+                    "top": "20.5%",
+                    "color": "#ffffff",
+                    "font-size": "11px",
+                    "font-weight": "500",
+                    "background-color": "rgba(22, 50, 62, 0.82)",
+                    "padding": "2px 6px",
+                    "border-radius": "10px",
+                    "white-space": "nowrap"
+                  },
+                  "prefix": ""
+                },
+                {
+                  "type": "state-icon",
+                  "entity": "light.family_room",
+                  "state_color": true,
+                  "style": {
+                    "left": "36.5%",
+                    "top": "29%"
+                  },
+                  "tap_action": {
+                    "action": "more-info"
+                  }
+                },
+                {
+                  "type": "state-icon",
+                  "entity": "media_player.apple_tv_family_room",
+                  "state_color": true,
+                  "style": {
+                    "left": "40.5%",
+                    "top": "29%"
+                  },
+                  "tap_action": {
+                    "action": "more-info"
+                  }
+                },
+                {
+                  "type": "state-icon",
+                  "entity": "binary_sensor.kitchen_occupied",
+                  "state_color": true,
+                  "style": {
+                    "left": "55%",
+                    "top": "35%"
+                  },
+                  "tap_action": {
+                    "action": "more-info"
+                  }
+                },
+                {
+                  "type": "state-label",
+                  "entity": "input_select.first_floor_kitchen_name",
+                  "style": {
+                    "left": "58.5%",
+                    "top": "27%",
+                    "color": "#ffffff",
+                    "font-size": "11px",
+                    "font-weight": "500",
+                    "background-color": "rgba(22, 50, 62, 0.82)",
+                    "padding": "2px 6px",
+                    "border-radius": "10px",
+                    "white-space": "nowrap"
+                  },
+                  "prefix": ""
+                },
+                {
+                  "type": "state-icon",
+                  "entity": "light.kitchen_lights",
+                  "state_color": true,
+                  "style": {
+                    "left": "61%",
+                    "top": "35%"
+                  },
+                  "tap_action": {
+                    "action": "more-info"
+                  }
+                },
+                {
+                  "type": "state-icon",
+                  "entity": "binary_sensor.garage_occupied",
+                  "state_color": true,
+                  "style": {
+                    "left": "68%",
+                    "top": "65%"
+                  },
+                  "tap_action": {
+                    "action": "more-info"
+                  }
+                },
+                {
+                  "type": "state-label",
+                  "entity": "input_select.first_floor_garage_name",
+                  "style": {
+                    "left": "71.5%",
+                    "top": "60%",
+                    "color": "#ffffff",
+                    "font-size": "11px",
+                    "font-weight": "500",
+                    "background-color": "rgba(22, 50, 62, 0.82)",
+                    "padding": "2px 6px",
+                    "border-radius": "10px",
+                    "white-space": "nowrap"
+                  },
+                  "prefix": ""
+                },
+                {
+                  "type": "state-icon",
+                  "entity": "light.gdo1_light",
+                  "state_color": true,
+                  "style": {
+                    "left": "75%",
+                    "top": "65%"
+                  },
+                  "tap_action": {
+                    "action": "more-info"
+                  }
+                },
+                {
+                  "type": "state-icon",
+                  "entity": "binary_sensor.office_occupied",
+                  "state_color": true,
+                  "style": {
+                    "left": "17%",
+                    "top": "36%"
+                  },
+                  "tap_action": {
+                    "action": "more-info"
+                  }
+                },
+                {
+                  "type": "state-label",
+                  "entity": "input_select.first_floor_rear_east_room_name",
+                  "style": {
+                    "left": "19%",
+                    "top": "28.5%",
+                    "color": "#ffffff",
+                    "font-size": "11px",
+                    "font-weight": "500",
+                    "background-color": "rgba(22, 50, 62, 0.82)",
+                    "padding": "2px 6px",
+                    "border-radius": "10px",
+                    "white-space": "nowrap"
+                  },
+                  "prefix": ""
+                },
+                {
+                  "type": "state-icon",
+                  "entity": "light.office_lights",
+                  "state_color": true,
+                  "style": {
+                    "left": "22%",
+                    "top": "36%"
+                  },
+                  "tap_action": {
+                    "action": "more-info"
+                  }
+                },
+                {
+                  "type": "state-icon",
+                  "entity": "light.living_room2",
+                  "title": "Living Room light",
+                  "state_color": true,
+                  "style": {
+                    "left": "19%",
+                    "top": "63%"
+                  },
+                  "tap_action": {
+                    "action": "more-info"
+                  }
+                },
+                {
+                  "type": "state-icon",
+                  "entity": "light.tapo_smart_dimmer",
+                  "title": "Dining Room dimmer",
+                  "state_color": true,
+                  "style": {
+                    "left": "49%",
+                    "top": "61%"
+                  },
+                  "tap_action": {
+                    "action": "more-info"
+                  }
+                }
+              ],
+              "grid_options": {
+                "columns": "full",
+                "rows": "auto"
+              },
+              "fit_mode": "contain"
+            },
+            {
+              "type": "markdown",
+              "content": "**Current activity:** {{ states('input_select.home_current_activity') }}  \n**Family Room TV:** {{ states('media_player.apple_tv_family_room') }}  \n**Residents:** {{ states('sensor.residents_present') }}",
+              "entity_id": [
+                "input_select.home_current_activity",
+                "media_player.apple_tv_family_room",
+                "sensor.residents_present"
+              ],
+              "grid_options": {
+                "columns": "full",
+                "rows": "auto"
+              }
+            }
+          ]
+        },
+        {
+          "column_span": 4,
+          "cards": [
+            {
+              "type": "heading",
+              "heading": "Second floor",
+              "heading_style": "title",
+              "icon": "mdi:home-floor-2"
+            },
+            {
+              "type": "picture-elements",
+              "image": "/local/02-floor-plan.svg?v=b4d4732a",
+              "alt_text": "Second floor plan with live occupancy, light, and device states",
+              "elements": [
+                {
+                  "type": "state-icon",
+                  "entity": "binary_sensor.master_bedroom_occupied",
+                  "state_color": true,
+                  "style": {
+                    "left": "61%",
+                    "top": "61%"
+                  },
+                  "tap_action": {
+                    "action": "more-info"
+                  }
+                },
+                {
+                  "type": "state-label",
+                  "entity": "input_select.second_floor_primary_bedroom_name",
+                  "style": {
+                    "left": "66%",
+                    "top": "49%",
+                    "color": "#ffffff",
+                    "font-size": "11px",
+                    "font-weight": "500",
+                    "background-color": "rgba(22, 50, 62, 0.82)",
+                    "padding": "2px 6px",
+                    "border-radius": "10px",
+                    "white-space": "nowrap"
+                  },
+                  "prefix": ""
+                },
+                {
+                  "type": "state-icon",
+                  "entity": "light.master_lights",
+                  "state_color": true,
+                  "style": {
+                    "left": "65%",
+                    "top": "61%"
+                  },
+                  "tap_action": {
+                    "action": "more-info"
+                  }
+                },
+                {
+                  "type": "state-icon",
+                  "entity": "media_player.master_bedroom",
+                  "state_color": true,
+                  "style": {
+                    "left": "69%",
+                    "top": "61%"
+                  },
+                  "tap_action": {
+                    "action": "more-info"
+                  }
+                },
+                {
+                  "type": "state-icon",
+                  "entity": "binary_sensor.master_bath_occupied",
+                  "state_color": true,
+                  "style": {
+                    "left": "65%",
+                    "top": "34%"
+                  },
+                  "tap_action": {
+                    "action": "more-info"
+                  }
+                },
+                {
+                  "type": "state-label",
+                  "entity": "input_select.second_floor_primary_bath_name",
+                  "style": {
+                    "left": "66%",
+                    "top": "26%",
+                    "color": "#ffffff",
+                    "font-size": "11px",
+                    "font-weight": "500",
+                    "background-color": "rgba(22, 50, 62, 0.82)",
+                    "padding": "2px 6px",
+                    "border-radius": "10px",
+                    "white-space": "nowrap"
+                  },
+                  "prefix": ""
+                },
+                {
+                  "type": "state-icon",
+                  "entity": "light.switchlinc_dimmer_2f_c0_24",
+                  "state_color": true,
+                  "style": {
+                    "left": "71%",
+                    "top": "34%"
+                  },
+                  "tap_action": {
+                    "action": "more-info"
+                  }
+                },
+                {
+                  "type": "state-icon",
+                  "entity": "binary_sensor.upstairs_hall_occupied",
+                  "state_color": true,
+                  "style": {
+                    "left": "43%",
+                    "top": "39.5%"
+                  },
+                  "tap_action": {
+                    "action": "more-info"
+                  }
+                },
+                {
+                  "type": "state-label",
+                  "entity": "input_select.second_floor_upper_hall_name",
+                  "style": {
+                    "left": "48%",
+                    "top": "41.5%",
+                    "color": "#ffffff",
+                    "font-size": "11px",
+                    "font-weight": "500",
+                    "background-color": "rgba(22, 50, 62, 0.82)",
+                    "padding": "2px 6px",
+                    "border-radius": "10px",
+                    "white-space": "nowrap"
+                  },
+                  "prefix": ""
+                },
+                {
+                  "type": "state-icon",
+                  "entity": "light.upstairs_lights",
+                  "state_color": true,
+                  "style": {
+                    "left": "48%",
+                    "top": "39.5%"
+                  },
+                  "tap_action": {
+                    "action": "more-info"
+                  }
+                },
+                {
+                  "type": "state-icon",
+                  "entity": "light.loft_light",
+                  "state_color": true,
+                  "style": {
+                    "left": "20%",
+                    "top": "34.5%"
+                  },
+                  "tap_action": {
+                    "action": "more-info"
+                  }
+                },
+                {
+                  "type": "state-icon",
+                  "entity": "media_player.master_fire_tv_stick",
+                  "state_color": true,
+                  "style": {
+                    "left": "73%",
+                    "top": "61%"
+                  },
+                  "tap_action": {
+                    "action": "more-info"
+                  }
+                }
+              ],
+              "grid_options": {
+                "columns": "full",
+                "rows": "auto"
+              },
+              "fit_mode": "contain"
+            },
+            {
+              "type": "markdown",
+              "content": "**Master media:** {{ states(\"media_player.master_bedroom\") }}  \n**Master Fire TV:** {{ states(\"media_player.master_fire_tv_stick\") }}  \n**Context mode:** {{ states(\"input_select.home_context_mode\") }}",
+              "entity_id": [
+                "media_player.master_bedroom",
+                "media_player.master_fire_tv_stick",
+                "input_select.home_context_mode"
+              ],
+              "grid_options": {
+                "columns": "full",
+                "rows": "auto"
+              }
+            }
+          ]
+        },
+        {
+          "column_span": 4,
+          "cards": [
+            {
+              "type": "heading",
+              "heading": "Live device key",
+              "heading_style": "subtitle",
+              "icon": "mdi:lightbulb-on-outline"
+            },
+            {
+              "type": "grid",
+              "columns": 4,
+              "square": false,
+              "cards": [
+                {
+                  "type": "tile",
+                  "entity": "light.family_room",
+                  "name": "Family Room light",
+                  "state_content": "state"
+                },
+                {
+                  "type": "tile",
+                  "entity": "light.kitchen_lights",
+                  "name": "Kitchen lights",
+                  "state_content": "state"
+                },
+                {
+                  "type": "tile",
+                  "entity": "light.master_lights",
+                  "name": "Master lights",
+                  "state_content": "state"
+                },
+                {
+                  "type": "tile",
+                  "entity": "media_player.apple_tv_family_room",
+                  "name": "Family Room TV",
+                  "state_content": "state"
+                },
+                {
+                  "type": "tile",
+                  "entity": "media_player.master_bedroom",
+                  "name": "Master media",
+                  "state_content": "state"
+                },
+                {
+                  "type": "tile",
+                  "entity": "input_select.home_current_activity",
+                  "name": "Activity",
+                  "state_content": "state"
+                },
+                {
+                  "type": "tile",
+                  "entity": "input_number.home_context_confidence",
+                  "name": "Confidence",
+                  "state_content": "state"
+                },
+                {
+                  "type": "tile",
+                  "entity": "input_boolean.ai_actions_enabled",
+                  "name": "AI actions",
+                  "state_content": "state"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "column_span": 4,
+          "cards": [
+            {
+              "type": "heading",
+              "heading": "Room names",
+              "heading_style": "title",
+              "icon": "mdi:format-title"
+            },
+            {
+              "type": "grid",
+              "columns": 3,
+              "square": false,
+              "cards": [
+                {
+                  "type": "tile",
+                  "entity": "input_select.first_floor_foyer_name",
+                  "name": "1F Foyer",
+                  "features": [
+                    {
+                      "type": "select-options"
+                    }
+                  ],
+                  "features_position": "bottom"
+                },
+                {
+                  "type": "tile",
+                  "entity": "input_select.first_floor_family_room_name",
+                  "name": "1F Family room",
+                  "features": [
+                    {
+                      "type": "select-options"
+                    }
+                  ],
+                  "features_position": "bottom"
+                },
+                {
+                  "type": "tile",
+                  "entity": "input_select.first_floor_kitchen_name",
+                  "name": "1F Kitchen",
+                  "features": [
+                    {
+                      "type": "select-options"
+                    }
+                  ],
+                  "features_position": "bottom"
+                },
+                {
+                  "type": "tile",
+                  "entity": "input_select.first_floor_garage_name",
+                  "name": "1F Garage",
+                  "features": [
+                    {
+                      "type": "select-options"
+                    }
+                  ],
+                  "features_position": "bottom"
+                },
+                {
+                  "type": "tile",
+                  "entity": "input_select.first_floor_rear_east_room_name",
+                  "name": "1F Rear east room",
+                  "features": [
+                    {
+                      "type": "select-options"
+                    }
+                  ],
+                  "features_position": "bottom"
+                },
+                {
+                  "type": "tile",
+                  "entity": "input_select.second_floor_primary_bedroom_name",
+                  "name": "2F Primary bedroom",
+                  "features": [
+                    {
+                      "type": "select-options"
+                    }
+                  ],
+                  "features_position": "bottom"
+                },
+                {
+                  "type": "tile",
+                  "entity": "input_select.second_floor_primary_bath_name",
+                  "name": "2F Primary bath",
+                  "features": [
+                    {
+                      "type": "select-options"
+                    }
+                  ],
+                  "features_position": "bottom"
+                },
+                {
+                  "type": "tile",
+                  "entity": "input_select.second_floor_upper_hall_name",
+                  "name": "2F Upper hall",
+                  "features": [
+                    {
+                      "type": "select-options"
+                    }
+                  ],
+                  "features_position": "bottom"
+                },
+                {
+                  "type": "tile",
+                  "entity": "input_select.second_floor_bedroom_center_name",
+                  "name": "2F Bedroom center",
+                  "features": [
+                    {
+                      "type": "select-options"
+                    }
+                  ],
+                  "features_position": "bottom"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "column_span": 4,
+          "cards": [
+            {
+              "type": "heading",
+              "heading": "Basement stairs",
+              "icon": "mdi:map-marker-question-outline"
+            },
+            {
+              "type": "tile",
+              "entity": "binary_sensor.theater_occupied",
+              "name": "Basement stairs occupancy"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

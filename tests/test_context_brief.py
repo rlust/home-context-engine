@@ -48,3 +48,20 @@ def test_brief_is_bounded_and_does_not_call_services():
     brief = build_context_brief(hass, "room", [{"text": "x" * 1000}], None)
     assert len(brief.text) <= 1400
     assert "async_call" not in brief.text
+
+
+def test_full_safety_policy_survives_overflow():
+    hass = hass_with_states({entity: "x" * 120 for entity in _LOADED.CONTEXT_ENTITIES.values()})
+    brief = build_context_brief(hass, "room home why door media health control",
+        [{"text": "x" * 180}] * 3, {"text": "x" * 180},
+        [{"entity": "light.desk", "room": "Office"}])
+    assert len(brief.text) <= 1400
+    assert brief.text.endswith("Missing context is not evidence of absence.")
+    assert "Keep normal Assist confirmation and Home Assistant safety behavior." in brief.text
+
+
+def test_topology_is_labeled_data_not_occupancy():
+    brief = build_context_brief(hass_with_states({}), "Office", [], None,
+        [{"entity": "light.desk", "room": "Office"}])
+    assert "room_topology" in brief.categories
+    assert "not proof of occupancy" in brief.text
