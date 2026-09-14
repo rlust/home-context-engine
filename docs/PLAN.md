@@ -5,6 +5,22 @@ device/account identifiers have been replaced with placeholders.
 
 ## Current handoff - 2026-09-13
 
+- September 14 bedroom handoff: desired capability is a bedroom relaxing scene
+  while quietly following computer work. The eventual goal is recognizing that
+  activity and applying the preferred scene, after detection is validated.
+- Two phases: Relaxing in Bedroom, then an explicit Sleep On command ends
+  relaxation and begins the existing bedtime shutdown routine. Keep user intent,
+  observed device outcomes and actual sleep distinct.
+- Bedroom status: planning and local scene-reference capture completed; no
+  bedroom automation deployed. Automatic relaxation-start detection is undefined.
+- Bedroom next steps: agree an observable relaxation-start signal; define an
+  observation-only episode model and user feedback; observe the Sleep On
+  transition while preserving existing bedtime behavior; validate detection
+  before proposing automated scene activation.
+- Cross-machine handoff: private scene values and device mappings are not in
+  GitHub. Inspect them on the correct local/live system before implementation.
+  The Family Room Watching TV preview is a separate isolated simulation, not
+  deployed control. This planning update does not deploy either capability.
 - Direction: follow VISION_ROADMAP.md and the root AGENTS.md working agreement.
 - Next unfinished task: verify observer fingerprint provenance end-to-end.
   Inspect how the live exporter declares the rule version, define a canonical
