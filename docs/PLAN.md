@@ -3,6 +3,52 @@
 Sanitized export of the project's running log. Internal IPs, the Apple ID, and
 device/account identifiers have been replaced with placeholders.
 
+## Current handoff - 2026-09-13
+
+- Direction: follow VISION_ROADMAP.md and the root AGENTS.md working agreement.
+- Next unfinished task: verify observer fingerprint provenance end-to-end.
+  Inspect how the live exporter declares the rule version, define a canonical
+  configuration digest, compare it with deployed rules and add tests for
+  missing/mismatched/version-changed evidence. Preserve historical attribution.
+- Completion criterion: reviews can be associated with a verified rule version,
+  and unknown provenance is explicitly ineligible for current-rule claims.
+  A fixed supplied hash alone does not meet this criterion.
+- Then: refresh private aggregate evidence and collect prospective start/stop/
+  vacancy reviews before implementing the server-side, no-device-call TV trial.
+- Last evidence: September 10, not a September 13 live recheck. See
+  operations/WATCHING_TV_AUDIT_FOLLOWUP_2026_09_10.md and
+  operations/WATCHING_TV_READINESS_2026_09_10.md. Overall calibration 12.3 points
+  exceeded the 10-point gate; current-rule provenance remains unverified.
+- Local artifact: dashboard/tv-preview is a synthetic rehearsal only. Target
+  brightness 11% is user-selected; preserve-warmth/leave-off defaults are proposed.
+  No live dashboard deployment, device change or action enablement occurred.
+- September 13 work: aligned vision, measurement gates and execution order;
+  added cross-session instructions and this handoff. This is repository work,
+  not a live HA validation. No background schedule was created.
+- Publication validation: 127 Python tests and 28 Node preview tests passed;
+  staged diff whitespace check passed. The first Python run had 11 socket-bind
+  permission failures in the sandbox (116 passed); the full rerun with local
+  loopback access passed. No production receiver or HA restart was involved.
+
+Future sessions: replace this handoff with verified progress and the next
+unfinished task as part of each substantive change. Do not repeatedly advance
+review dates without doing the investigation or documenting the blocker.
+
+## Adopted direction - 2026-09-13
+
+The user approved moving forward with a trustworthy, understandable home that
+reduces household effort while preserving human control. VISION_ROADMAP.md is
+the authoritative direction and execution order. Older deployment snapshots
+below are historical, not current live-state assertions.
+
+Immediate priority: verify review-to-observer-version provenance, then gather
+prospective evidence and build a server-side shadow trial. The local TV browser
+rehearsal is not a live control. User-selected target brightness is 11%; no
+device-action enablement, restart or broader control is authorized by this
+roadmap adoption. Preserve the existing stricter advancement gates, including
+overall calibration error at most 10 percentage points. Suggestion acceptance
+is usefulness feedback, never a substitute for accuracy.
+
 ## Verified deployment status — 2026-08-24
 
 - The private Mac mini receiver is running the diagnostics return path from

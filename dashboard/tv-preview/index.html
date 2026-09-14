@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'unsafe-inline'; connect-src 'none'; img-src 'none'; object-src 'none'; base-uri 'none'">
+  <title>Watching TV | Preview rehearsal</title>
+  <style>
+    :root {color-scheme:light; font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif; color:#20302d; background:#f3f5f2}
+    * {box-sizing:border-box} body {margin:0; padding:clamp(20px,5vw,72px); background:radial-gradient(ellipse at top right,#e3ede9,transparent 60%); min-height:100vh}
+    main {max-width:1000px; margin:auto} .eyebrow {font-size:12px; font-weight:650; letter-spacing:.14em; text-transform:uppercase; color:#526b64}
+    h1 {font-size:clamp(32px,5vw,52px); letter-spacing:-.055em; margin:14px 0 8px} .sub {color:#61716b; line-height:1.6; margin-bottom:30px}
+    .panel {background:#ffffffd9; border:1px solid #ffffff; border-radius:28px; padding:clamp(22px,4vw,40px); box-shadow:0 12px 36px #29423709; margin-bottom:20px}
+    .hero {display:grid; grid-template-columns:1fr auto; gap:24px; align-items:center} h2 {font-size:24px; letter-spacing:-.035em; margin:10px 0} .number {font-size:72px; font-weight:550; letter-spacing:-.07em} .number small {font-size:26px; color:#75847c}
+    .pill {display:inline-block; border-radius:99px; background:#e9efeb; color:#385d4b; padding:7px 12px; font-size:12px; font-weight:600}
+    .metrics {display:grid; grid-template-columns:repeat(3,1fr); gap:24px; margin-top:24px} .metric strong {display:block; font-size:30px; letter-spacing:-.04em} .metric span {font-size:13px; color:#66736d}
+    .hold {color:#815718; background:#fbf3e4; padding:15px 18px; border-radius:16px; line-height:1.5; margin-top:24px; font-size:14px}
+    button,select {font:inherit; border-radius:12px; padding:13px 18px; border:1px solid #d6dfd9; background:white; color:#263c32; min-height:46px}
+    button {cursor:pointer} button.primary {background:#294d3e; color:white; border-color:#294d3e} button:disabled {opacity:.45; cursor:not-allowed} button:focus-visible,select:focus-visible {outline:3px solid #83b7a1; outline-offset:3px}
+    .controls {display:flex; flex-wrap:wrap; gap:12px; margin-top:24px; align-items:center} #status {min-height:48px; line-height:1.5; font-size:14px} .note {font-size:12px; color:#68776e; line-height:1.6} label {font-size:14px} footer {font-size:13px; color:#68776e; padding:6px}
+    @media(max-width:600px) {.hero {grid-template-columns:1fr}.number {font-size:60px}.metrics {grid-template-columns:1fr;gap:18px}.metric {display:flex;align-items:baseline;gap:16px}.controls>* {width:100%}}
+    @media(prefers-reduced-motion:no-preference) {main {animation:appear .45s ease-out}@keyframes appear {from {opacity:0;transform:translateY(8px)} to {opacity:1;transform:translateY(0)}}}
+  </style>
+</head>
+<body><main>
+  <div class="eyebrow">Newark / Home Context</div>
+  <h1>A quieter evening.</h1>
+  <p class="sub">Watching TV lighting rehearsal. Synthetic signals, no Home Assistant connection.</p>
+  <section class="panel">
+    <div class="hero"><div><span class="pill">Preview only</span><h2>Family Room lamp</h2><p class="sub">Keep its warmth. Leave it off if already off.<br>One lamp, one approval, no automatic repeat.</p></div><div class="number">11<small>%</small></div></div>
+    <div class="controls"><button id="approve" class="primary">Approve preview</button><span id="expiry" class="note"></span></div>
+    <p id="status" role="status" aria-live="polite"></p>
+    <label for="scenario">Test a safety condition</label>
+    <div class="controls"><select id="scenario"><option value="ready">Eligible synthetic session</option value="vacant">Room vacant</option><option value="tv">TV unavailable</option><option value="stale">Stale snapshot</option><option value="off">Lamp already off</option><option value="manual">Manual lamp change</option><option value="gate">AI Actions on</option></select><button id="restart">New demo session</button></div>
+    <p class="note">Approval is browser-local and is not scored dashboard feedback. A new demo session explicitly resets the rehearsal. No device controls, network requests, or persistent approvals exist here.</p>
+  </section>
+  <section class="panel"><div class="eyebrow">Verified evidence / September 10, 2026, 7:00 PM EDT</div><h2>Progress, without skipping safeguards.</h2>
+    <div class="metrics"><div class="metric"><strong>89 / 50</strong><span>Scored reviews / minimum</span></div><div class="metric"><strong>20 / 20</strong><span>TV reviews / minimum</span></div><div class="metric"><strong>100%</strong><span>Observed TV precision</span></div></div>
+    <div class="hold">Live trial on hold. Overall calibration error is 12.3 points (goal: at most 10). File identifiers are reconciled; runtime coverage, observer-version provenance and live override/circuit-breaker validation remain unverified.</div>
+    <p class="note">Dated aggregate snapshot, not live metrics. Twenty confirmed TV episodes do not establish performance in every situation or validate missed detections.</p>
+  </section>
+  <footer>Observe first. Approve deliberately. Keep device actions off.</footer>
+</main><script type="module" src="./ui.mjs"></script></body></html>

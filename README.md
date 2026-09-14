@@ -15,6 +15,17 @@ This repo is a **sanitized export** — internal IP addresses, the Apple ID, and
 account/device identifiers have been replaced with placeholders. It is a record
 and reference for the project, not a turnkey import.
 
+**Project direction:** fewer unnecessary interactions, fewer wrong actions and
+more trust. See the [vision and execution roadmap](docs/VISION_ROADMAP.md) for
+the September 13, 2026 goals, measurement gates and ordered implementation work.
+Historical deployment statements in this repository are not live-state checks.
+
+**For Codex and other agents:** start with [AGENTS.md](AGENTS.md), then the
+[current handoff](docs/PLAN.md#current-handoff---2026-09-13). Keep code, tests,
+dated evidence and the next unfinished task synchronized in each change. For a
+ChatGPT session without repository access, provide this repository and ask it
+to read those files first; repository guidance is not automatically global memory.
+
 ---
 
 ## How it works
